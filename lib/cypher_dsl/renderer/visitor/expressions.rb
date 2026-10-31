@@ -71,7 +71,7 @@ module CypherDSL
         end
 
         def render_labels(node, labels)
-          "#{render_expression(node)}#{labels.map { |label| ":#{escape_schema_name(label)}" }.join}"
+          "#{render_expression(node)}#{labels.map { |label| render_label(label) }.join}"
         end
 
         def render_condition_or_operation(expression)
@@ -81,6 +81,7 @@ module CypherDSL
           when ConstantCondition then expression.value.to_s
           when ExpressionCondition then render_expression(expression.expression)
           when ExistsCondition then render_exists(expression)
+          when PropertyExistsCondition then render_property_exists(expression)
           when RelationshipPatternCondition then render_pattern_expression(expression.pattern)
           when ListPredicate then render_list_predicate(expression)
           when HasLabelCondition then render_labels(expression.node, expression.labels)
@@ -243,9 +244,21 @@ module CypherDSL
         end
 
         # Pretty printed, each further operand starts an indented line: `(a\n  AND b)`.
+        # `exists(n.prop)` on Neo4j 4, `n.prop IS NOT NULL` afterwards.
+        def render_property_exists(condition, negated: false)
+          property = render_expression(condition.property)
+          return "exists(#{property})" if @configuration.legacy_functions?
+
+          "#{property} IS #{'NOT ' unless negated}NULL"
+        end
+
         def render_compound_condition(condition)
           if condition.negation?
             negated = condition.conditions.first
+            if negated.is_a?(PropertyExistsCondition) && !@configuration.legacy_functions?
+              return render_property_exists(negated, negated: true)
+            end
+
             rendered = render_expression(negated)
             return negated.is_a?(RelationshipPatternCondition) ? "NOT #{rendered}" : "NOT (#{rendered})"
           end
@@ -257,7 +270,7 @@ module CypherDSL
         def render_function_invocation(invocation)
           arguments = invocation.arguments.map { |argument| render_expression(argument) }
           name = invocation.function_name
-          legacy = @configuration.dialect == Dialect::NEO4J_4
+          legacy = @configuration.legacy_functions?
           # Neo4j 4 has no elementId(); the closest equivalent is the stringified internal id.
           return "toString(id(#{arguments.join(', ')}))" if name == 'elementId' && legacy
 

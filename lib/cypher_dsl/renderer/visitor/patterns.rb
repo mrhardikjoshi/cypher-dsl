@@ -19,9 +19,16 @@ module CypherDSL
           end
         end
 
+        # `p = SHORTEST 1 pattern`, or `p = shortestPath(pattern)` on dialects before Neo4j 5.21.
         def render_named_path(path)
-          selector = path.selector && "#{path.selector.keyword} "
-          "#{render_expression(path.symbolic_name)} = #{selector}#{render_pattern_element(path.pattern)}"
+          name = render_expression(path.symbolic_name)
+          pattern = render_pattern_element(path.pattern)
+          selector = path.selector
+          if selector&.legacy_function && @configuration.legacy_path_selectors?
+            "#{name} = #{selector.legacy_function}(#{pattern})"
+          else
+            "#{name} = #{"#{selector.keyword} " if selector}#{pattern}"
+          end
         end
 
         def render_quantified_path_pattern(quantified)
@@ -46,30 +53,10 @@ module CypherDSL
 
           @visited_names << name if name && !@in_pattern_expression
           name = nil if @in_pattern_expression
-          labels = node.labels.map { |label| ":#{render_label(label)}" }.join
+          labels = node.labels.map { |label| render_label(label) }.join
           properties = node.properties && " #{render_expression(node.properties)}"
           where = node.where_condition && " WHERE #{render_expression(node.where_condition)}"
           "(#{name}#{labels}#{properties}#{where})"
-        end
-
-        def render_label(label)
-          label.is_a?(LabelExpression) ? render_label_expression(label) : escape_schema_name(label)
-        end
-
-        # `A|B`, `A&B`, `!A`; operands of another kind are parenthesised.
-        def render_label_expression(expression)
-          case expression.type
-          when :leaf then escape_schema_name(expression.value)
-          when :negation then "!#{render_label_operand(expression.operands.first, expression)}"
-          else
-            operator = expression.type == :conjunction ? '&' : '|'
-            expression.operands.map { |operand| render_label_operand(operand, expression) }.join(operator)
-          end
-        end
-
-        def render_label_operand(operand, parent)
-          rendered = render_label_expression(operand)
-          operand.leaf? || operand.type == parent.type || operand.type == :negation ? rendered : "(#{rendered})"
         end
 
         # A pattern used as a condition: known names render bare, unknown ones are dropped.

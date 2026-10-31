@@ -8,7 +8,7 @@ module CypherDSL
     def initialize(node, labels)
       super()
       @node = node
-      @labels = labels.map(&:to_s).freeze
+      @labels = labels.map { |label| label.is_a?(Labels) ? label : label.to_s }.freeze
       freeze
     end
   end

@@ -273,7 +273,7 @@ module CypherDSL
 
     def label_operation?(arguments)
       arguments.size > 1 && arguments.first.is_a?(Node) &&
-        arguments.drop(1).all? { |argument| argument.is_a?(String) || argument.is_a?(Symbol) }
+        arguments.drop(1).all? { |argument| [String, Symbol, Labels].any? { |type| argument.is_a?(type) } }
     end
 
     def optional_expression(value) = value.nil? ? nil : Expression.coerce(value)

@@ -8,6 +8,7 @@ module CypherDSL
     class Visitor
       include Patterns
       include Expressions
+      include LabelRendering
 
       def initialize(configuration)
         @configuration = configuration

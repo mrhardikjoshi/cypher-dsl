@@ -181,7 +181,7 @@ module CypherDSL
         unless Renderer::Dialect::LEGACY_SUBQUERY_SYNTAX.include?(dialect)
           expected = expected.sub('CALL {', 'CALL (nodes) {').sub("  WITH nodes\n", '')
         end
-        expect(renderer.render(complete_statement)).to eq(expected)
+        expect(renderer.render(complete_statement)).to eq("#{Renderer::Dialect::PREFIXES[dialect]}#{expected}")
       end
     end
 

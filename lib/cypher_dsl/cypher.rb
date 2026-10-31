@@ -14,12 +14,17 @@ module CypherDSL
     # map (`Cypher.node('Test', Cypher.map_of(…))`) sets its properties.
     def node(primary_label, *additional_labels)
       properties = additional_labels.pop if [MapExpression, Hash].any? { |type| additional_labels.last.is_a?(type) }
-      labels = [primary_label, *additional_labels].map { |label| label.is_a?(LabelExpression) ? label : label.to_s }
+      labels = [primary_label, *additional_labels].map { |label| label.is_a?(Labels) ? label : label.to_s }
       node = Node.new(labels:)
       properties ? node.with_properties(properties) : node
     end
 
     # A node without labels, optionally named.
+    # Label expressions: `Cypher.node(Cypher.exactly_label('A').or('B'))`, `Cypher.node(Cypher.all_labels($labels))`.
+    def exactly_label(label) = Labels.exactly(label)
+    def all_labels(expression) = Labels.all(expression)
+    def any_label(expression) = Labels.any(expression)
+
     def any_node(name = nil)
       node = Node.new(labels: [])
       name ? node.named(name) : node
@@ -76,15 +81,15 @@ module CypherDSL
 
     # Path selectors, `Cypher.any_shortest.named(:p).defined_by(pattern)` → `p = ANY pattern`.
     def any_shortest = NamedPath::Selector.new('ANY')
-    def all_shortest = NamedPath::Selector.new('ALL SHORTEST')
+    def all_shortest = NamedPath::Selector.new('ALL SHORTEST', legacy_function: 'allShortestPaths')
     def shortest_k(count) = NamedPath::Selector.shortest_k(count)
     def shortest_k_groups(count) = NamedPath::Selector.shortest_k(count, groups: true)
 
     # `EXISTS { pattern }` / `EXISTS { pattern, pattern }` / `EXISTS { [WITH imports] statement }`.
-    # A property gives the condition `n.prop IS NOT NULL`, any other plain expression the
-    # legacy `exists(expr)` function.
+    # A property gives the condition `n.prop IS NOT NULL` (`exists(n.prop)` on Neo4j 4), any other
+    # plain expression the `exists(expr)` function.
     def exists(body, *imports)
-      return body.is_not_null if body.is_a?(Property)
+      return PropertyExistsCondition.new(body) if body.is_a?(Property)
       return function('exists', body) if body.is_a?(Expression) && !body.is_a?(Statement) && !pattern?(body)
 
       ExistsCondition.new(body, imports.flatten.map { |import| Expression.coerce(import) })

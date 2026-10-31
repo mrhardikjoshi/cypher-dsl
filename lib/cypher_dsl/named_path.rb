@@ -40,16 +40,19 @@ module CypherDSL
 
     # `Cypher.any_shortest` and friends: a path selector waiting for `named`.
     class Selector
-      attr_reader :keyword
+      # `legacy_function` is the pre-5.21 spelling (`shortestPath`, `allShortestPaths`), if any.
+      attr_reader :keyword, :legacy_function
 
       def self.shortest_k(count, groups: false)
         raise ArgumentError, 'The path count needs to be greater than 0.' unless count.positive?
 
-        new("SHORTEST #{count}#{' GROUPS' if groups}")
+        legacy_function = count == 1 && !groups ? 'shortestPath' : nil
+        new("SHORTEST #{count}#{' GROUPS' if groups}", legacy_function:)
       end
 
-      def initialize(keyword)
+      def initialize(keyword, legacy_function: nil)
         @keyword = keyword
+        @legacy_function = legacy_function
         freeze
       end
 

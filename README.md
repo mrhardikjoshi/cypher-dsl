@@ -61,17 +61,24 @@ Binding one name to two different values raises `ConflictingParametersException`
 
 ```ruby
 config = Renderer::Configuration.new_config
-  .with_dialect(Renderer::Dialect::NEO4J_4)   # default: NEO4J_5_23
+  .with_dialect(Renderer::Dialect::NEO4J_4)   # default: NEO4J_5_DEFAULT_CYPHER
   .always_escape_names(false)                  # default: true, false when pretty printing
   .with_pretty_print(true)                     # one clause per line, indented blocks
   .with_indent_style(:tab)                     # or .with_indent_size(4)
+  .disable_dynamic_labels                      # render n:$($labels) statically
   .build
 Renderer.get_renderer(config).render(statement)
 Renderer.get_renderer(Renderer::Configuration.pretty_printing).render(statement)
 ```
 
-The dialect decides how `CALL { }` subqueries import variables (`CALL (u) { … }`
-from Neo4j 5.23 on, `CALL { WITH u … }` before) and whether `elementId()` exists.
+The dialects mirror the Java enum: `NEO4J_4`, `NEO4J_5`, `NEO4J_5_23`, `NEO4J_5_26`,
+`NEO4J_5_DEFAULT_CYPHER`, `NEO4J_5_CYPHER_5`, `NEO4J_5_CYPHER_25` and `NEO4J_2025`.
+The dialect decides how `CALL { }` subqueries import variables (`CALL (u) { … }` from
+Neo4j 5.23 on, `CALL { WITH u … }` before), whether paths use `shortestPath()` or
+`SHORTEST 1`, `exists(n.prop)` or `n.prop IS NOT NULL`, `distance()` or
+`point.distance()`, whether `elementId()` exists, whether label expressions may be
+dynamic (`n:$($labels)`, Neo4j 5.26+) and whether the statement carries a `CYPHER 5`
+or `CYPHER 25` prefix.
 
 ## Installation
 

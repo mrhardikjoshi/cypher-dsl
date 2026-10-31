@@ -66,3 +66,6 @@ RSpec/MultipleMemoizedHelpers:
 # Helper names mirror the variables of the upstream Java tests (create_this1, create_var0, …).
 RSpec/IndexedLet:
   Enabled: false
+# Configuration#initialize takes one keyword per rendering option.
+Metrics/ParameterLists:
+  CountKeywordArgs: false

@@ -15,7 +15,7 @@ module CypherDSL
       freeze
     end
 
-    def render(statement) = Visitor.new(configuration).render(statement)
+    def render(statement) = "#{configuration.prefix}#{Visitor.new(configuration).render(statement)}"
 
     # The statement's parameters as a {StatementCatalog}; raises
     # {ConflictingParametersException} when a name is bound inconsistently.
