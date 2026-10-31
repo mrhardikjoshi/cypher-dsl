@@ -6,6 +6,9 @@ module CypherDSL
   class Statement
     attr_reader :clauses, :prefix
 
+    # An empty builder, as `Statement.builder()` in Java.
+    def self.builder = StatementBuilder.new
+
     # `prefix` is `EXPLAIN` or `PROFILE` for the corresponding statement kinds.
     def initialize(clauses, prefix: nil)
       @clauses = clauses.freeze

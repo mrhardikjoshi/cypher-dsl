@@ -16,15 +16,13 @@ module CypherDSL
 
     # --- reading ---------------------------------------------------------
 
+    # `match(pattern, …)` or, as in Java, `match(optional, pattern, …)` with a leading flag.
     def match(*pattern_elements)
-      append(Clauses::Match.new(optional: false, pattern_elements: pattern_elements.flatten.freeze, where: nil),
-             :condition)
+      optional = [true, false].include?(pattern_elements.first) ? pattern_elements.shift : false
+      append(Clauses::Match.new(optional:, pattern_elements: pattern_elements.flatten.freeze, where: nil), :condition)
     end
 
-    def optional_match(*pattern_elements)
-      append(Clauses::Match.new(optional: true, pattern_elements: pattern_elements.flatten.freeze, where: nil),
-             :condition)
-    end
+    def optional_match(*pattern_elements) = match(true, *pattern_elements)
 
     def where(condition) = update_last(:condition) { |clause| clause.with(where: condition) }
 

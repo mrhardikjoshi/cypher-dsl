@@ -30,6 +30,12 @@ module CypherDSL
     # The condition `n:Label`, checking the node for the given labels.
     def has_labels(*labels) = HasLabelCondition.new(self, labels)
 
+    # `id(n)`; deprecated in Neo4j 5 in favour of {#element_id}, kept for parity.
+    def internal_id = FunctionInvocation.new('id', [required_symbolic_name])
+
+    # `elementId(n)`.
+    def element_id = FunctionInvocation.new('elementId', [required_symbolic_name])
+
     def relationship_to(other, *types) = Relationship.create(self, :ltr, other, types)
     def relationship_from(other, *types) = Relationship.create(self, :rtl, other, types)
     def relationship_between(other, *types) = Relationship.create(self, :uni, other, types)
