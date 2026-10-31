@@ -73,8 +73,10 @@ module CypherDSL
     def shortest_k(count) = NamedPath::Selector.shortest_k(count)
     def shortest_k_groups(count) = NamedPath::Selector.shortest_k(count, groups: true)
 
-    # `EXISTS { pattern }`.
-    def exists(pattern_or_statement) = ExistsCondition.new(pattern_or_statement)
+    # `EXISTS { pattern }` / `EXISTS { [WITH imports] statement }`.
+    def exists(pattern_or_statement, *imports)
+      ExistsCondition.new(pattern_or_statement, imports.flatten.map { |import| Expression.coerce(import) })
+    end
 
     # List predicates: `Cypher.all(:x).in(list).where(condition)`.
     def all(variable) = ListPredicate::Ongoing.new('all', variable)
@@ -108,7 +110,19 @@ module CypherDSL
 
     def point(expression) = FunctionInvocation.new('point', [Expression.coerce(expression)])
     def distance(point1, point2) = function('point.distance', point1, point2)
-    def collect(expression) = function('collect', expression)
+
+    # `collect(expression)`, or `COLLECT { statement }` when given a statement.
+    def collect(expression_or_statement)
+      return CollectExpression.new(expression_or_statement) if expression_or_statement.is_a?(Statement)
+
+      function('collect', expression_or_statement)
+    end
+
+    def rand = function('rand')
+    def to_integer(expression) = function('toInteger', expression)
+    def to_float(expression) = function('toFloat', expression)
+    def to_string(expression) = function('toString', expression)
+    def to_boolean(expression) = function('toBoolean', expression)
     def sum(expression) = function('sum', expression)
     def avg(expression) = function('avg', expression)
     def min(expression) = function('min', expression)
@@ -129,12 +143,28 @@ module CypherDSL
     def count_distinct(expression) = FunctionInvocation.new('count', [Expression.coerce(expression)], distinct: true)
     def type(relationship) = FunctionInvocation.new('type', [relationship.required_symbolic_name])
 
-    # `Cypher.call('db.labels')` / `Cypher.call('db', 'labels')`: a procedure call; see {StandaloneCall}.
-    def call(*name_parts) = StandaloneCall.new(name_parts)
+    # `Cypher.call('db.labels')` / `Cypher.call('db', 'labels')`: a procedure call (see {StandaloneCall});
+    # `Cypher.call(statement, imports…)`: a `CALL { subquery }`.
+    def call(*arguments)
+      return StatementBuilder.new.call(*arguments) if arguments.first.is_a?(Statement)
+
+      StandaloneCall.new(arguments)
+    end
+
+    # `Cypher.use('graph', statement)`: the statement prefixed with `USE graph`.
+    def use(graph, statement) = Statement.new([Clauses::Use.new(graph: graph.to_s)] + statement.clauses)
+
+    # `Cypher.load_csv('file:///x.csv').as(:line)`.
+    def load_csv(uri, with_headers: false) = StatementBuilder.new.load_csv(uri, with_headers:)
+
+    # Imports for an EXISTS / COLLECT subquery: `Cypher.subquery_with(x).collect(statement)`.
+    def subquery_with(*imports) = SubqueryWith.new(imports)
 
     # `CALL () { raw cypher }`; continues as a statement builder.
     def call_raw_cypher(cypher)
-      StatementBuilder.new.send(:append, Clauses::CallSubquery.new(body: RawExpression.new(cypher), imports: []), nil)
+      clause = Clauses::CallSubquery.new(body: RawExpression.new(cypher), imports: [],
+                                         in_transactions: false, rows: nil)
+      StatementBuilder.new.send(:append, clause, nil)
     end
 
     # Verbatim Cypher, the escape hatch.

@@ -105,8 +105,26 @@ module CypherDSL
     # `foreach(:i).in(list).apply(clause, …)`.
     def foreach(variable) = OngoingForeach.new(self, SymbolicName.of(variable))
 
-    # `call('db.labels').with_args(…).yield(…)` inside a query.
-    def call(*name_parts) = StandaloneCall.new(name_parts, builder: self)
+    # `call('db.labels').with_args(…).yield(…)` for a procedure, or
+    # `call(statement, imports…)` for a `CALL { subquery }`.
+    def call(*arguments)
+      return StandaloneCall.new(arguments, builder: self) unless arguments.first.is_a?(Statement)
+
+      statement, *imports = arguments
+      append(subquery_clause(statement, imports, in_transactions: false, rows: nil), nil)
+    end
+
+    # `CALL { subquery } IN TRANSACTIONS [OF n ROWS]`; `call_in_transactions(statement, [rows], imports…)`.
+    def call_in_transactions(statement, *arguments)
+      rows = arguments.first.is_a?(Integer) ? arguments.shift : nil
+      append(subquery_clause(statement, arguments, in_transactions: true, rows:), nil)
+    end
+
+    # `load_csv('file:///x.csv').as(:line)`.
+    def load_csv(uri, with_headers: false) = OngoingLoadCsv.new(self, uri.to_s, with_headers)
+
+    # The statement built so far as an `EXISTS { … }` condition.
+    def as_condition = ExistsCondition.new(build)
 
     # --- finishing -------------------------------------------------------
 
@@ -146,6 +164,21 @@ module CypherDSL
       end
     end
 
+    # Intermediate state of `load_csv(uri)` waiting for `as(alias)`.
+    class OngoingLoadCsv
+      def initialize(builder, uri, with_headers)
+        @builder = builder
+        @uri = uri
+        @with_headers = with_headers
+        freeze
+      end
+
+      def as(alias_name)
+        clause = Clauses::LoadCsv.new(uri: @uri, with_headers: @with_headers, alias_name: SymbolicName.of(alias_name))
+        @builder.send(:append, clause, nil)
+      end
+    end
+
     # Intermediate state after `on_match` / `on_create`, waiting for `set` or `mutate`.
     class MergeActionBuilder
       def initialize(builder, type)
@@ -164,6 +197,10 @@ module CypherDSL
     attr_reader :clauses
 
     def append(clause, mode) = StatementBuilder.new(@clauses + [clause], mode)
+
+    def subquery_clause(statement, imports, in_transactions:, rows:)
+      Clauses::CallSubquery.new(body: statement, imports: coerce_items(imports), in_transactions:, rows:)
+    end
 
     def add_merge_action(type, operations)
       update_last(nil) do |clause|

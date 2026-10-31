@@ -16,15 +16,20 @@ module CypherDSL
       def render(statement)
         return render_union(statement) if statement.is_a?(UnionQuery)
 
-        rendered = statement.clauses.map { |clause| render_clause(clause) }.join(' ')
+        rendered = statement.clauses.each_with_index.map do |clause, index|
+          @first_clause = index.zero? && @visited_names.empty?
+          render_clause(clause)
+        end.join(' ')
         statement.prefix ? "#{statement.prefix} #{rendered}" : rendered
       end
 
-      # Each statement of a union is its own scope.
+      # Each statement of a union starts from the scope the union was entered with.
       def render_union(union)
+        entry_names = @visited_names.dup
+        entry_aliases = @defined_aliases.dup
         union.statements.map do |statement|
-          @visited_names = Set.new
-          @defined_aliases = Set.new
+          @visited_names = entry_names.dup
+          @defined_aliases = entry_aliases.dup
           render(statement)
         end.join(union.all ? ' UNION ALL ' : ' UNION ')
       end
@@ -56,8 +61,15 @@ module CypherDSL
         when Clauses::Foreach then render_foreach(clause)
         when Clauses::Call then render_call(clause)
         when Clauses::CallSubquery then render_call_subquery(clause)
+        when Clauses::LoadCsv then render_load_csv(clause)
+        when Clauses::Use then "USE #{clause.graph}"
         else raise ArgumentError, "Cannot render clause #{clause.inspect}"
         end
+      end
+
+      def render_load_csv(clause)
+        headers = clause.with_headers ? ' WITH HEADERS' : ''
+        "LOAD CSV#{headers} FROM #{render_literal(clause.uri)} AS #{render_expression(clause.alias_name)}"
       end
 
       def render_call(clause)
@@ -70,18 +82,59 @@ module CypherDSL
         parts.join(' ')
       end
 
+      # `CALL (imports) { body }` on Neo4j 5.23+, `CALL { WITH imports body }` before.
+      # A subquery is its own scope: only imported names count as visited inside.
+      # A leading WITH of plain names in the body is an import list itself.
       def render_call_subquery(clause)
-        imports = clause.imports.map { |import| render_expression(import) }.join(', ')
-        body = clause.body.is_a?(RawExpression) ? clause.body.content : render_subquery(clause.body)
-        "CALL (#{imports}) {#{body}}"
+        body, imports = subquery_body_and_imports(clause)
+        suffix = clause.in_transactions ? " IN TRANSACTIONS#{" OF #{clause.rows} ROWS" if clause.rows}" : ''
+        if @configuration.legacy_subquery_syntax?
+          prefix = imports.empty? ? '' : "WITH #{imports.map { |import| render_expression(import) }.join(', ')} "
+          "CALL {#{prefix}#{render_in_scope(body, scope_of(imports))}}#{suffix}"
+        else
+          list = imports.map { |import| render_expression(import) }.join(', ')
+          list = @first_clause ? '' : '*' if imports.empty?
+          "CALL (#{list}) {#{render_in_scope(body, scope_of(imports))}}#{suffix}"
+        end
       end
 
-      # A subquery statement rendered in its own scope.
-      def render_subquery(statement)
-        outer_scope = @visited_names.dup
-        rendered = render(statement)
+      def subquery_body_and_imports(clause)
+        body = clause.body
+        return [body, clause.imports] if clause.imports.any? || body.is_a?(RawExpression) || body.is_a?(UnionQuery)
+
+        first = body.clauses.first
+        return [body, []] unless importing_with?(first)
+
+        legacy = @configuration.legacy_subquery_syntax?
+        [legacy ? body : Statement.new(body.clauses.drop(1), prefix: body.prefix), legacy ? [] : first.items]
+      end
+
+      def importing_with?(clause)
+        clause.is_a?(Clauses::With) && !clause.distinct && clause.order.nil? && clause.skip.nil? &&
+          clause.limit.nil? && clause.where.nil? && clause.items.all?(SymbolicName)
+      end
+
+      def scope_of(imports)
+        imports.filter_map { |import| import.is_a?(SymbolicName) ? resolve_name(import) : nil }.to_set
+      end
+
+      def render_in_scope(body, scope)
+        return body.content if body.is_a?(RawExpression)
+
+        outer_scope = @visited_names
+        @visited_names = scope
+        rendered = render(body)
         @visited_names = outer_scope
         rendered
+      end
+
+      # A subquery statement rendered within the current scope (EXISTS / COLLECT).
+      def render_subquery(statement, imports = [])
+        outer_scope = @visited_names.dup
+        prefix = imports.empty? ? '' : "WITH #{imports.map { |import| render_projection_item(import) }.join(', ')} "
+        rendered = render(statement)
+        @visited_names = outer_scope
+        "#{prefix}#{rendered}"
       end
 
       # The body of a FOREACH is its own scope: names rendered inside it do not
@@ -263,6 +316,7 @@ module CypherDSL
         when AliasedExpression then render_aliased_reference(expression)
         when NamedPath then render_expression(expression.symbolic_name)
         when RawExpression then expression.content
+        when CollectExpression then "COLLECT { #{render_subquery(expression.statement, expression.imports)} }"
         when FunctionInvocation then render_function_invocation(expression)
         when SortItem then render_sort_item(expression)
         when CaseExpression then render_case(expression)
@@ -334,7 +388,7 @@ module CypherDSL
 
       def render_exists(condition)
         body = condition.body
-        rendered = body.is_a?(Statement) ? render_subquery(body) : render_pattern_element(body)
+        rendered = body.is_a?(Statement) ? render_subquery(body, condition.imports) : render_pattern_element(body)
         "EXISTS { #{rendered} }"
       end
 

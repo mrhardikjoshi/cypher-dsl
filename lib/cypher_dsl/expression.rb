@@ -44,6 +44,7 @@ module CypherDSL
     def divide(other) = Operation.new(self, '/', Expression.coerce(other))
     def remainder(other) = Operation.new(self, '%', Expression.coerce(other))
     def pow(other) = Operation.new(self, '^', Expression.coerce(other))
+    def concat(other) = Operation.new(self, '+', Expression.coerce(other))
 
     # Java short forms.
     alias eq is_equal_to

@@ -8,7 +8,7 @@ module CypherDSL
     class Configuration
       attr_reader :always_escape_names, :dialect
 
-      def initialize(always_escape_names: true, dialect: Dialect::NEO4J_5)
+      def initialize(always_escape_names: true, dialect: Dialect::NEO4J_5_23)
         raise ArgumentError, "Unknown dialect #{dialect.inspect}" unless Dialect::ALL.include?(dialect)
 
         @always_escape_names = always_escape_names
@@ -20,6 +20,9 @@ module CypherDSL
 
       # Mirrors `Configuration.newConfig()…build()`.
       def self.new_config = Builder.new
+
+      # `CALL { WITH imports … }` (older dialects) rather than `CALL (imports) { … }`.
+      def legacy_subquery_syntax? = Dialect::LEGACY_SUBQUERY_SYNTAX.include?(dialect)
 
       # Fluent builder; each setter returns the builder.
       class Builder

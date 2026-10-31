@@ -17,22 +17,23 @@ Metrics/BlockLength:
     - 'spec/**/*'
     - '*.gemspec'
 
-Metrics/ModuleLength:
-  Exclude:
-    - 'spec/**/*'
-
 # The renderer is one big dispatch over node types; splitting it by cop limits
 # would only scatter the grammar.
 Metrics/ClassLength:
   Max: 400
+# The Cypher module is the facade of factory methods, one line each.
+Metrics/ModuleLength:
+  Max: 250
+  Exclude:
+    - 'spec/**/*'
 Metrics/MethodLength:
   Max: 20
 Metrics/AbcSize:
   Max: 30
 Metrics/CyclomaticComplexity:
-  Max: 15
+  Max: 20
 Metrics/PerceivedComplexity:
-  Max: 15
+  Max: 20
 
 # Public names mirror the Java API (is_equal_to, is_null, …).
 Naming/PredicatePrefix:
@@ -56,3 +57,6 @@ RSpec/MultipleExpectations:
 
 RSpec/NestedGroups:
   Max: 4
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 10
