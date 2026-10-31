@@ -2,7 +2,7 @@
 
 module CypherDSL
   module Clauses
-    # `[OPTIONAL] MATCH pattern [WHERE condition]`.
-    Match = Data.define(:optional, :pattern_elements, :where)
+    # `[OPTIONAL] MATCH pattern [USING hint …] [WHERE condition]`.
+    Match = Data.define(:optional, :pattern_elements, :hints, :where)
   end
 end

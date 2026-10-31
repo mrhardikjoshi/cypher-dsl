@@ -206,8 +206,20 @@ module CypherDSL
       end
 
       def render_match(clause)
+        hints = clause.hints.map { |hint| "#{break_line}#{render_hint(hint)}" }
         [('OPTIONAL ' if clause.optional), 'MATCH ', render_pattern_elements(clause.pattern_elements),
-         render_where(clause.where)].join
+         *hints, render_where(clause.where)].join
+      end
+
+      def render_hint(hint)
+        case hint.type
+        when :join then "USING JOIN ON #{hint.names.map { |name| render_expression(name) }.join(', ')}"
+        when :scan then "USING SCAN #{render_expression(hint.container)}:#{escape_schema_name(hint.schema_name)}"
+        else
+          keyword = hint.type == :index_seek ? 'USING INDEX SEEK' : 'USING INDEX'
+          properties = hint.property_names.map { |name| Escaper.escape_if_necessary(name) }.join(', ')
+          "#{keyword} #{render_expression(hint.container)}:#{escape_schema_name(hint.schema_name)}(#{properties})"
+        end
       end
 
       def render_merge(clause)

@@ -40,7 +40,12 @@ module CypherDSL
     def name_hint = labels.first.is_a?(String) ? labels.first.downcase : 'n'
     alias as_expression required_symbolic_name
 
-    def property(*names) = Property.new(required_symbolic_name, names)
+    # `n.prop`; the property keeps this node as its container (index hints need the label),
+    # the name is settled now so generated names keep their order.
+    def property(*names)
+      required_symbolic_name
+      Property.new(self, names)
+    end
 
     # The condition `n:Label`, checking the node for the given labels.
     def has_labels(*labels) = HasLabelCondition.new(self, labels)

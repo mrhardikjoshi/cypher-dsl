@@ -72,7 +72,11 @@ module CypherDSL
     # The pattern as a predicate, `WHERE (a)-[:X]->(b)`.
     def as_condition = RelationshipPatternCondition.new(self)
 
-    def property(*names) = Property.new(required_symbolic_name, names)
+    # `r.prop`; the property keeps this relationship as its container (index hints need the type).
+    def property(*names)
+      required_symbolic_name
+      Property.new(self, names)
+    end
 
     # `r += {…}` and `r = {…}`, for use in SET.
     def mutate(expression) = Operation.new(self, '+=', Expression.coerce(expression))

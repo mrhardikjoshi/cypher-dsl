@@ -19,10 +19,18 @@ module CypherDSL
     # `match(pattern, …)` or, as in Java, `match(optional, pattern, …)` with a leading flag.
     def match(*pattern_elements)
       optional = [true, false].include?(pattern_elements.first) ? pattern_elements.shift : false
-      append(Clauses::Match.new(optional:, pattern_elements: pattern_elements.flatten.freeze, where: nil), :condition)
+      pattern_elements = pattern_elements.flatten.freeze
+      append(Clauses::Match.new(optional:, pattern_elements:, hints: [].freeze, where: nil), :condition)
     end
 
     def optional_match(*pattern_elements) = match(true, *pattern_elements)
+
+    # Planner hints on the preceding MATCH: `using_index(n.property(:name))`,
+    # `using_index_seek(…)`, `using_scan(n)`, `using_join_on(n, m)`.
+    def using_index(*properties) = add_hint(Hint.use_index_for(false, *properties))
+    def using_index_seek(*properties) = add_hint(Hint.use_index_for(true, *properties))
+    def using_scan(node) = add_hint(Hint.use_scan_for(node))
+    def using_join_on(*nodes_or_names) = add_hint(Hint.use_join_on(*nodes_or_names))
 
     def where(condition)
       if @clauses.last.is_a?(Clauses::CallSubquery)
@@ -218,6 +226,14 @@ module CypherDSL
 
     def subquery_clause(statement, imports, in_transactions:, rows:)
       Clauses::CallSubquery.new(body: statement, imports: coerce_items(imports), in_transactions:, rows:)
+    end
+
+    def add_hint(hint)
+      update_last(:condition) do |clause|
+        raise ArgumentError, 'Hints need a preceding MATCH.' unless clause.is_a?(Clauses::Match)
+
+        clause.with(hints: clause.hints + [hint])
+      end
     end
 
     def add_merge_action(type, operations)
