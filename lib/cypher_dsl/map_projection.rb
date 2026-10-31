@@ -46,7 +46,10 @@ module CypherDSL
 
         [:property, entry]
       when AliasedExpression then [:pair, entry.alias_name.value, entry.delegate]
-      else [:expression, Expression.coerce(entry)]
+      when SymbolicName, Node, Relationship then [:expression, entry]
+      else
+        raise ArgumentError, 
+"#{entry.inspect} of type #{entry.class} cannot be used with an implicit name as map entry."
       end
     end
 

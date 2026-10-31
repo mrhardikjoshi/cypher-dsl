@@ -3,26 +3,33 @@
 module CypherDSL
   # A node pattern `(name:Label {props})`. Used as an expression it stands for
   # its symbolic name.
+  #
+  # Nodes are value objects; the one piece of lazily computed state is the
+  # generated name an unnamed node receives when something references it, as
+  # in the Java `getRequiredSymbolicName`.
   class Node
     include Expression
 
-    attr_reader :labels, :symbolic_name, :properties
+    attr_reader :labels, :properties
+
+    # The explicit name, or the generated one once {#required_symbolic_name} was called.
+    attr_reader :symbolic_name
 
     def initialize(labels:, symbolic_name: nil, properties: nil)
       @labels = labels.freeze
       @symbolic_name = symbolic_name
       @properties = properties
-      freeze
     end
 
     def named(name) = with(symbolic_name: SymbolicName.of(name))
 
     def with_properties(*keys_and_values) = with(properties: MapExpression.of(*keys_and_values))
 
-    def named? = !symbolic_name.nil?
+    def named? = !@symbolic_name.nil?
 
+    # The name of this node, generating one if it has none (and keeping it, as in Java).
     def required_symbolic_name
-      symbolic_name or raise ArgumentError, 'This node needs a symbolic name (use `named`) to be referenced.'
+      @symbolic_name ||= SymbolicName.unresolved(labels.first&.downcase || 'n') # rubocop:disable Naming/MemoizedInstanceVariableName
     end
     alias as_expression required_symbolic_name
 
@@ -34,8 +41,8 @@ module CypherDSL
     # `n += {…}`, for use in SET.
     def mutate(expression) = Operation.new(self, '+=', Expression.coerce(expression))
 
-    # The map projection `n{…}`.
-    def project(*entries) = MapProjection.new(self, entries.flatten)
+    # The map projection `n{…}`, built on the (possibly generated) name.
+    def project(*entries) = MapProjection.new(required_symbolic_name, entries.flatten)
 
     # `id(n)`; deprecated in Neo4j 5 in favour of {#element_id}, kept for parity.
     def internal_id = FunctionInvocation.new('id', [required_symbolic_name])
@@ -53,7 +60,7 @@ module CypherDSL
     private
 
     def with(**changes)
-      Node.new(labels:, symbolic_name:, properties:, **changes)
+      Node.new(labels:, symbolic_name: @symbolic_name, properties:, **changes)
     end
   end
 end

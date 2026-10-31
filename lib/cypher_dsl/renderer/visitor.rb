@@ -9,11 +9,29 @@ module CypherDSL
       def initialize(configuration)
         @configuration = configuration
         @visited_names = Set.new
+        @generated_names = {}.compare_by_identity
       end
 
       def render(statement)
+        return render_union(statement) if statement.is_a?(UnionQuery)
+
         rendered = statement.clauses.map { |clause| render_clause(clause) }.join(' ')
         statement.prefix ? "#{statement.prefix} #{rendered}" : rendered
+      end
+
+      # Each statement of a union is its own scope.
+      def render_union(union)
+        union.statements.map do |statement|
+          @visited_names = Set.new
+          render(statement)
+        end.join(union.all ? ' UNION ALL ' : ' UNION ')
+      end
+
+      # Unresolved symbolic names get a generated, render-stable name.
+      def resolve_name(symbolic_name)
+        return symbolic_name.value if symbolic_name.resolved?
+
+        @generated_names[symbolic_name] ||= "#{symbolic_name.hint}#{format('%03d', @generated_names.size + 1)}"
       end
 
       private
@@ -64,7 +82,8 @@ module CypherDSL
       end
 
       def render_delete(clause)
-        "#{'DETACH ' if clause.detach}DELETE #{clause.expressions.map { |expression| render_expression(expression) }.join(', ')}"
+        "#{'DETACH ' if clause.detach}DELETE #{clause.expressions.map { |expression|
+ render_expression(expression) }.join(', ')}"
       end
 
       # WITH ends a query part: only the names it projects stay in scope, so a
@@ -78,9 +97,9 @@ module CypherDSL
       def exported_names(items)
         items.filter_map do |item|
           case item
-          when AliasedExpression then item.alias_name.value
-          when SymbolicName then item.value
-          when Node, Relationship then item.symbolic_name&.value
+          when AliasedExpression then resolve_name(item.alias_name)
+          when SymbolicName then resolve_name(item)
+          when Node, Relationship then item.symbolic_name && resolve_name(item.symbolic_name)
           end
         end.to_set
       end
@@ -137,7 +156,7 @@ module CypherDSL
       end
 
       def render_node(node)
-        name = node.symbolic_name&.value
+        name = node.symbolic_name && resolve_name(node.symbolic_name)
         return "(#{name})" if name && @visited_names.include?(name)
 
         @visited_names << name if name
@@ -148,7 +167,8 @@ module CypherDSL
 
       def render_relationship_details(relationship)
         details = relationship.details
-        inner = details.empty? ? '' : "[#{render_details_content(details)}]"
+        empty = details.empty? && relationship.symbolic_name.nil?
+        inner = empty ? '' : "[#{render_details_content(relationship)}]"
         case relationship.direction
         when :ltr then "-#{inner}->"
         when :rtl then "<-#{inner}-"
@@ -156,10 +176,11 @@ module CypherDSL
         end
       end
 
-      def render_details_content(details)
+      def render_details_content(relationship)
+        details = relationship.details
         types = details.types.map { |type| escape_schema_name(type) }.join('|')
         [
-          details.symbolic_name&.value,
+          relationship.symbolic_name && resolve_name(relationship.symbolic_name),
           (":#{types}" unless types.empty?),
           render_length(details),
           details.properties && " #{render_expression(details.properties)}"
@@ -177,7 +198,7 @@ module CypherDSL
 
       def render_expression(expression)
         case expression
-        when SymbolicName then Escaper.escape_if_necessary(expression.value)
+        when SymbolicName then Escaper.escape_if_necessary(resolve_name(expression))
         when Node, Relationship then render_expression(expression.required_symbolic_name)
         when Property then render_property(expression)
         when Literal then render_literal(expression.value)
@@ -218,6 +239,7 @@ module CypherDSL
         when MapExpression then render_map(expression)
         when ListExpression then "[#{expression.elements.map { |element| render_expression(element) }.join(', ')}]"
         when PatternComprehension then render_pattern_comprehension(expression)
+        when ListComprehension then render_list_comprehension(expression)
         when MapProjection then render_map_projection(expression)
         when LabelOperation then render_labels(expression.node, expression.labels)
         else render_condition_or_operation(expression)
@@ -242,7 +264,11 @@ module CypherDSL
       end
 
       def render_operation(operation)
-        rendered = "#{render_expression(operation.left)} #{operation.operator} #{render_expression(operation.right)}"
+        left = render_expression(operation.left)
+        right = render_expression(operation.right)
+        return "#{left}^#{right}" if operation.operator == '^'
+
+        rendered = "#{left} #{operation.operator} #{right}"
         operation.assignment? ? rendered : "(#{rendered})"
       end
 
@@ -264,11 +290,22 @@ module CypherDSL
         "#{render_expression(projection.subject)}{#{entries.join(', ')}}"
       end
 
+      # A pattern comprehension is its own scope: names it introduces do not
+      # count as visited outside of it.
       def render_pattern_comprehension(comprehension)
+        outer_scope = @visited_names.dup
         parts = [render_pattern_element(comprehension.pattern)]
         parts << "WHERE #{render_expression(comprehension.where_condition)}" if comprehension.where_condition
         projection = comprehension.projection.map { |expression| render_expression(expression) }
         parts << "| #{projection.size == 1 ? projection.first : "[#{projection.join(', ')}]"}"
+        @visited_names = outer_scope
+        "[#{parts.join(' ')}]"
+      end
+
+      def render_list_comprehension(comprehension)
+        parts = ["#{render_expression(comprehension.variable)} IN #{render_expression(comprehension.list)}"]
+        parts << "WHERE #{render_expression(comprehension.where_condition)}" if comprehension.where_condition
+        parts << "| #{render_expression(comprehension.projection)}" if comprehension.projection
         "[#{parts.join(' ')}]"
       end
 
@@ -289,7 +326,8 @@ module CypherDSL
       end
 
       def render_map(map)
-        "{#{map.entries.map { |key, value| "#{Escaper.escape_if_necessary(key)}: #{render_expression(value)}" }.join(', ')}}"
+        "{#{map.entries.map { |key, value|
+ "#{Escaper.escape_if_necessary(key)}: #{render_expression(value)}" }.join(', ')}}"
       end
 
       def render_comparison(comparison)
@@ -319,7 +357,13 @@ module CypherDSL
         arguments = invocation.arguments.map do |argument|
           pattern_element?(argument) ? render_pattern_element(argument) : render_expression(argument)
         end
-        "#{invocation.function_name}(#{'DISTINCT ' if invocation.distinct}#{arguments.join(', ')})"
+        rendered = "#{invocation.function_name}(#{'DISTINCT ' if invocation.distinct}#{arguments.join(', ')})"
+        # Neo4j 4 has no elementId(); the closest equivalent is the stringified internal id.
+        if invocation.function_name == 'elementId' && @configuration.dialect == Dialect::NEO4J_4
+          "toString(id(#{arguments.join(', ')}))"
+        else
+          rendered
+        end
       end
 
       def pattern_element?(argument)

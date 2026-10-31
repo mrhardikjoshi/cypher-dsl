@@ -28,15 +28,19 @@ module CypherDSL
       @direction = direction
       @right = right
       @details = details
-      freeze
+      @generated_name = nil
     end
 
-    def symbolic_name = details.symbolic_name
+    # The explicit name, or the generated one once {#required_symbolic_name} was called.
+    def symbolic_name = details.symbolic_name || @generated_name
+
     def named? = !symbolic_name.nil?
 
+    # The name of this relationship, generating one if it has none.
     def required_symbolic_name
-      symbolic_name or raise ArgumentError, 'This relationship needs a symbolic name (use `named`) to be referenced.'
+      details.symbolic_name || (@generated_name ||= SymbolicName.unresolved(details.types.first&.downcase || 'r'))
     end
+    alias as_expression required_symbolic_name
 
     def named(name) = with_details(symbolic_name: SymbolicName.of(name))
 
@@ -53,8 +57,11 @@ module CypherDSL
     # `r += {…}`, for use in SET.
     def mutate(expression) = Operation.new(self, '+=', Expression.coerce(expression))
 
-    # The map projection `r{…}`.
-    def project(*entries) = MapProjection.new(self, entries.flatten)
+    # The map projection `r{…}`, built on the (possibly generated) name.
+    def project(*entries) = MapProjection.new(required_symbolic_name, entries.flatten)
+
+    # `elementId(r)`.
+    def element_id = FunctionInvocation.new('elementId', [required_symbolic_name])
 
     def relationship_to(other, *types) = RelationshipChain.new([self]).relationship_to(other, *types)
     def relationship_from(other, *types) = RelationshipChain.new([self]).relationship_from(other, *types)

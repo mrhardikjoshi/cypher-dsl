@@ -61,6 +61,11 @@ module CypherDSL
     # `[pattern WHERE … | …]`; continue with `where` and `returning`.
     def list_based_on(pattern) = PatternComprehension.new(pattern)
 
+    # `[variable IN list WHERE … | …]`; continue with `in`, `where` and `returning`.
+    def list_with(variable) = ListComprehension.new(variable)
+
+    def range(start_value, end_value, step = nil) = function('range', *[start_value, end_value, step].compact)
+
     # --- operations ------------------------------------------------------
 
     def set(target, value) = Operation.new(target, '=', Expression.coerce(value))
@@ -109,5 +114,8 @@ module CypherDSL
     def unwind(*expressions) = StatementBuilder.new.unwind(*expressions)
     def returning(*expressions) = StatementBuilder.new.returning(*expressions)
     def returning_distinct(*expressions) = StatementBuilder.new.returning_distinct(*expressions)
+
+    def union(*statements) = UnionQuery.create(statements, all: false)
+    def union_all(*statements) = UnionQuery.create(statements, all: true)
   end
 end

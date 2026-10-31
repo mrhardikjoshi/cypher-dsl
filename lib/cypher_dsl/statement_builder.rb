@@ -207,11 +207,14 @@ module CypherDSL
       end
     end
 
-    # RETURN/WITH items: strings and symbols name variables, everything else is an expression.
+    # RETURN/WITH items: strings and symbols name variables, nodes and
+    # relationships stand for their (possibly generated) names, everything else
+    # is an expression.
     def coerce_items(expressions)
       expressions.flatten.map do |item|
         case item
         when String, Symbol then SymbolicName.of(item)
+        when Node, Relationship then item.required_symbolic_name
         else Expression.coerce(item)
         end
       end.freeze

@@ -8,9 +8,9 @@ AllCops:
 
 Layout/LineLength:
   Max: 120
-  AllowedPatterns:
-    # expected Cypher strings in specs are kept verbatim from upstream
-    - '^\s*(expect|to eq|\x27|")'
+  # Specs keep upstream's expected Cypher strings and builder chains verbatim.
+  Exclude:
+    - 'spec/**/*'
 
 Metrics/BlockLength:
   Exclude:
