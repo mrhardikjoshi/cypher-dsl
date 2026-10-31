@@ -39,7 +39,8 @@ module CypherDSL
     # procedure call with YIELD.
     def result_statement?
       last = clauses.last
-      last.is_a?(Clauses::Return) || (last.is_a?(Clauses::Call) && !last.yield_items.empty?)
+      last.is_a?(Clauses::Return) || last.is_a?(Clauses::RawReturn) ||
+        (last.is_a?(Clauses::Call) && !last.yield_items.empty?)
     end
 
     # True when the statement is a bare procedure call, with or without YIELD.

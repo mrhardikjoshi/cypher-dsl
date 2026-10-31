@@ -193,6 +193,7 @@ module CypherDSL
     def unwind(*expressions) = StatementBuilder.new.unwind(*expressions)
     def returning(*expressions) = StatementBuilder.new.returning(*expressions)
     def returning_distinct(*expressions) = StatementBuilder.new.returning_distinct(*expressions)
+    def returning_raw(*expressions) = StatementBuilder.new.returning_raw(*expressions)
 
     def union(*statements) = UnionQuery.create(statements, all: false)
     def union_all(*statements) = UnionQuery.create(statements, all: true)

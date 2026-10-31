@@ -42,6 +42,9 @@ module CypherDSL
     def returning(*expressions) = append(return_clause(false, expressions), :projection)
     def returning_distinct(*expressions) = append(return_clause(true, expressions), :projection)
 
+    # A projection rendered without the RETURN keyword, for raw fragments that carry their own.
+    def returning_raw(*expressions) = append(Clauses::RawReturn.new(items: coerce_items(expressions)), :projection)
+
     def with(*expressions)
       append(Clauses::With.new(distinct: false, items: coerce_items(expressions), order: nil, skip: nil, limit: nil,
                                where: nil), :condition)

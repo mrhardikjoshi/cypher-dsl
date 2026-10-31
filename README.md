@@ -38,6 +38,41 @@ output is meant to match Cypher-DSL byte for byte.
 
 - **No ActiveSupport.** The only runtime dependency is Zeitwerk.
 
+## Parameters
+
+Parameters render as `$name`; give them a value and the statement hands back
+the map a driver needs:
+
+```ruby
+statement = Cypher.match(Cypher.node('User').named(:u))
+  .where(Cypher.property(:u, :name).is_equal_to(Cypher.parameter(:name, 'Neo')))
+  .returning(:u)
+  .build
+
+statement.cypher          # => "MATCH (u:`User`) WHERE u.name = $name RETURN u"
+statement.parameters      # => {"name" => "Neo"}
+statement.parameter_names # => ["name"]
+```
+
+`Cypher.anon_parameter(value)` lets the renderer pick the name (`$pcdsl01`, …).
+Binding one name to two different values raises `ConflictingParametersException`.
+
+## Rendering options
+
+```ruby
+config = Renderer::Configuration.new_config
+  .with_dialect(Renderer::Dialect::NEO4J_4)   # default: NEO4J_5_23
+  .always_escape_names(false)                  # default: true, false when pretty printing
+  .with_pretty_print(true)                     # one clause per line, indented blocks
+  .with_indent_style(:tab)                     # or .with_indent_size(4)
+  .build
+Renderer.get_renderer(config).render(statement)
+Renderer.get_renderer(Renderer::Configuration.pretty_printing).render(statement)
+```
+
+The dialect decides how `CALL { }` subqueries import variables (`CALL (u) { … }`
+from Neo4j 5.23 on, `CALL { WITH u … }` before) and whether `elementId()` exists.
+
 ## Installation
 
 ```ruby

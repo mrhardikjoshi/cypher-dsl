@@ -13,6 +13,7 @@ module CypherDSL
         @generated_names = {}.compare_by_identity
         @parameter_uses = {}
         @anonymous_parameters = []
+        @level = 0
       end
 
       # The parameters seen while rendering; see {Renderer#catalog}.
@@ -24,9 +25,38 @@ module CypherDSL
         rendered = statement.clauses.each_with_index.map do |clause, index|
           @first_clause = index.zero? && @visited_names.empty?
           render_clause(clause)
-        end.join(' ')
+        end.join(break_line)
         statement.prefix ? "#{statement.prefix} #{rendered}" : rendered
       end
+
+      private
+
+      # --- pretty printing ------------------------------------------------
+
+      def pretty? = @configuration.pretty_print
+
+      # A clause or entry separator: a newline plus indentation when pretty printing, a space otherwise.
+      def break_line(level = @level)
+        pretty? ? "\n#{@configuration.indent_unit * level}" : ' '
+      end
+
+      # Renders the block one level deeper, e.g. the body of a subquery.
+      def nested
+        @level += 1
+        yield
+      ensure
+        @level -= 1
+      end
+
+      # `opening` + body on its own indented lines + `closing`, or inline when not pretty printing.
+      def block(opening, closing, inline_padding: ' ', &body)
+        body = nested(&body)
+        return "#{opening}#{inline_padding}#{body}#{inline_padding}#{closing}" unless pretty?
+
+        "#{opening}#{break_line(@level + 1)}#{body}#{break_line}#{closing}"
+      end
+
+      public
 
       # Each statement of a union starts from the scope the union was entered with.
       def render_union(union)
@@ -55,6 +85,7 @@ module CypherDSL
         when Clauses::Match then render_match(clause)
         when Clauses::With then render_with(clause)
         when Clauses::Return then render_projection('RETURN', clause, nil)
+        when Clauses::RawReturn then clause.items.map { |item| render_projection_item(item) }.join(', ')
         when Clauses::Create then "CREATE #{render_pattern_elements(clause.pattern_elements)}"
         when Clauses::Merge then render_merge(clause)
         when Clauses::Set then "SET #{render_operations(clause.operations)}"
@@ -95,12 +126,15 @@ module CypherDSL
         suffix = clause.in_transactions ? " IN TRANSACTIONS#{" OF #{clause.rows} ROWS" if clause.rows}" : ''
         if @configuration.legacy_subquery_syntax?
           prefix = imports.empty? ? '' : "WITH #{imports.map { |import| render_expression(import) }.join(', ')} "
-          "CALL {#{prefix}#{render_in_scope(body, scope_of(imports))}}#{suffix}"
+          opening = 'CALL {'
         else
           list = imports.map { |import| render_expression(import) }.join(', ')
           list = @first_clause ? '' : '*' if imports.empty?
-          "CALL (#{list}) {#{render_in_scope(body, scope_of(imports))}}#{suffix}"
+          prefix = ''
+          opening = "CALL (#{list}) {"
         end
+        rendered = block(opening, '}', inline_padding: '') { "#{prefix}#{render_in_scope(body, scope_of(imports))}" }
+        "#{rendered}#{suffix}"
       end
 
       def subquery_body_and_imports(clause)
@@ -158,7 +192,8 @@ module CypherDSL
 
       def render_merge(clause)
         actions = clause.actions.map do |action|
-          " ON #{action.type == :on_match ? 'MATCH' : 'CREATE'} SET #{render_operations(action.operations)}"
+          separator = pretty? ? break_line(@level + 1) : ' '
+          "#{separator}ON #{action.type == :on_match ? 'MATCH' : 'CREATE'} SET #{render_operations(action.operations)}"
         end
         "MERGE #{render_pattern_elements(clause.pattern_elements)}#{actions.join}"
       end
@@ -196,8 +231,7 @@ module CypherDSL
         parts << "ORDER BY #{clause.order.items.map { |item| render_sort_item(item) }.join(', ')}" if clause.order
         parts << "SKIP #{render_expression(clause.skip)}" if clause.skip
         parts << "LIMIT #{render_expression(clause.limit)}" if clause.limit
-        parts << "WHERE #{render_expression(where)}" if where && !where.is_a?(NoCondition)
-        parts.join(' ')
+        "#{parts.join(' ')}#{render_where(where)}"
       end
 
       # In RETURN/WITH an aliased expression is defined once (`expr AS alias`);
@@ -224,10 +258,11 @@ module CypherDSL
         elements.map { |element| render_pattern_element(element) }.join(', ')
       end
 
+      # WHERE goes on its own line when pretty printing.
       def render_where(condition)
         return nil if condition.nil? || condition.is_a?(NoCondition)
 
-        " WHERE #{render_expression(condition)}"
+        "#{break_line}WHERE #{render_expression(condition)}"
       end
 
       def render_sort_item(item)
@@ -321,7 +356,8 @@ module CypherDSL
         when AliasedExpression then render_aliased_reference(expression)
         when NamedPath then render_expression(expression.symbolic_name)
         when RawExpression then expression.content
-        when CollectExpression then "COLLECT { #{render_subquery(expression.statement, expression.imports)} }"
+        when CollectExpression
+          block('COLLECT {', '}') { render_subquery(expression.statement, expression.imports) }
         when FunctionInvocation then render_function_invocation(expression)
         when SortItem then render_sort_item(expression)
         when CaseExpression then render_case(expression)
@@ -393,8 +429,9 @@ module CypherDSL
 
       def render_exists(condition)
         body = condition.body
-        rendered = body.is_a?(Statement) ? render_subquery(body, condition.imports) : render_pattern_element(body)
-        "EXISTS { #{rendered} }"
+        return "EXISTS { #{render_pattern_element(body)} }" unless body.is_a?(Statement)
+
+        block('EXISTS {', '}') { render_subquery(body, condition.imports) }
       end
 
       def render_list_predicate(predicate)
@@ -403,16 +440,18 @@ module CypherDSL
       end
 
       def render_map_projection(projection)
-        entries = projection.entries.map do |kind, *args|
-          case kind
-          when :all then '.*'
-          when :lookup then ".#{Escaper.escape_if_necessary(args.first)}"
-          when :property then ".#{Escaper.escape_if_necessary(args.first.names.first)}"
-          when :pair then "#{Escaper.escape_if_necessary(args.first)}: #{render_expression(args.last)}"
-          else render_expression(args.first)
+        subject = render_expression(projection.subject)
+        render_entries("#{subject}#{' ' if pretty?}{", '}') do
+          projection.entries.map do |kind, *args|
+            case kind
+            when :all then '.*'
+            when :lookup then ".#{Escaper.escape_if_necessary(args.first)}"
+            when :property then ".#{Escaper.escape_if_necessary(args.first.names.first)}"
+            when :pair then "#{Escaper.escape_if_necessary(args.first)}: #{render_expression(args.last)}"
+            else render_expression(args.first)
+            end
           end
         end
-        "#{render_expression(projection.subject)}{#{entries.join(', ')}}"
       end
 
       # A pattern comprehension is its own scope: names it introduces do not
@@ -468,8 +507,17 @@ module CypherDSL
       end
 
       def render_map(map)
-        entries = map.entries.map { |key, value| "#{Escaper.escape_if_necessary(key)}: #{render_expression(value)}" }
-        "{#{entries.join(', ')}}"
+        render_entries('{', '}') do
+          map.entries.map { |key, value| "#{Escaper.escape_if_necessary(key)}: #{render_expression(value)}" }
+        end
+      end
+
+      # Comma separated entries, one per indented line when pretty printing.
+      def render_entries(opening, closing, &entries)
+        entries = nested(&entries)
+        return "#{opening}#{entries.join(', ')}#{closing}" unless pretty?
+
+        "#{opening}#{break_line(@level + 1)}#{entries.join(",#{break_line(@level + 1)}")}#{break_line}#{closing}"
       end
 
       def render_comparison(comparison)
@@ -485,6 +533,7 @@ module CypherDSL
         expression.is_a?(Comparison) ? "(#{rendered})" : rendered
       end
 
+      # Pretty printed, each further operand starts an indented line: `(a\n  AND b)`.
       def render_compound_condition(condition)
         if condition.negation?
           negated = condition.conditions.first
@@ -492,7 +541,8 @@ module CypherDSL
           return negated.is_a?(RelationshipPatternCondition) ? "NOT #{rendered}" : "NOT (#{rendered})"
         end
 
-        "(#{condition.conditions.map { |inner| render_expression(inner) }.join(" #{condition.operator} ")})"
+        operands = nested { condition.conditions.map { |inner| render_expression(inner) } }
+        "(#{operands.join("#{break_line(@level + 1)}#{condition.operator} ")})"
       end
 
       def render_function_invocation(invocation)
