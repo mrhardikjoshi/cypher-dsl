@@ -10,6 +10,7 @@ module CypherDSL
       case value
       when Condition then value
       when Relationship, RelationshipChain then RelationshipPatternCondition.new(value)
+      when FunctionInvocation then ExpressionCondition.new(value) # boolean functions such as isEmpty()
       else raise ArgumentError, "#{value.inspect} is not a condition"
       end
     end

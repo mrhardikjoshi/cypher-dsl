@@ -89,7 +89,8 @@ module CypherDSL
                   else
                     @visited_names << name if name && !@in_pattern_expression
                     content = render_details_content(relationship)
-                    content.empty? ? '' : "[#{content}]"
+                    # A name dropped from a pattern expression leaves its brackets behind: `-[]->`.
+                    content.empty? && !(name && @in_pattern_expression) ? '' : "[#{content}]"
                   end
           quantifier = details.quantifier&.to_cypher
           case relationship.direction

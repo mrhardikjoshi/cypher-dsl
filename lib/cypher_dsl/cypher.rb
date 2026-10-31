@@ -4,6 +4,8 @@ module CypherDSL
   # The main entry point of the DSL. Mirrors the static factory methods of the
   # Java `org.neo4j.cypherdsl.core.Cypher` class in snake_case.
   module Cypher
+    extend Functions
+
     module_function
 
     # --- pattern elements ------------------------------------------------
@@ -79,9 +81,11 @@ module CypherDSL
     def shortest_k_groups(count) = NamedPath::Selector.shortest_k(count, groups: true)
 
     # `EXISTS { pattern }` / `EXISTS { pattern, pattern }` / `EXISTS { [WITH imports] statement }`.
-    # Given a plain expression it is the legacy `exists(expr)`, rendered as `expr IS NOT NULL`.
+    # A property gives the condition `n.prop IS NOT NULL`, any other plain expression the
+    # legacy `exists(expr)` function.
     def exists(body, *imports)
-      return Expression.coerce(body).is_not_null if body.is_a?(Expression) && !body.is_a?(Statement) && !pattern?(body)
+      return body.is_not_null if body.is_a?(Property)
+      return function('exists', body) if body.is_a?(Expression) && !body.is_a?(Statement) && !pattern?(body)
 
       ExistsCondition.new(body, imports.flatten.map { |import| Expression.coerce(import) })
     end
@@ -121,9 +125,7 @@ module CypherDSL
     def case_expression(subject = nil) = CaseExpression.new(subject: subject && Expression.coerce(subject))
 
     # --- sorting and functions --------------------------------------------
-
-    def point(expression) = FunctionInvocation.new('point', [Expression.coerce(expression)])
-    def distance(point1, point2) = function('point.distance', point1, point2)
+    # Plain functions live in {Functions}; these overloads also accept patterns and statements.
 
     # `collect(expression)`, or `COLLECT { statement }` when given a statement.
     def collect(expression_or_statement)
@@ -132,53 +134,16 @@ module CypherDSL
       function('collect', expression_or_statement)
     end
 
-    def collect_distinct(expression)
-      FunctionInvocation.new('collect', [Expression.coerce(expression)], distinct: true)
-    end
-
-    def percentile_cont(expression, percentile) = function('percentileCont', expression, percentile)
-    def percentile_disc(expression, percentile) = function('percentileDisc', expression, percentile)
-    def st_dev(expression) = function('stDev', expression)
-    def st_dev_p(expression) = function('stDevP', expression)
-    def head(expression) = function('head', expression)
-    def last(expression) = function('last', expression)
-    def tail(expression) = function('tail', expression)
-    def reverse(expression) = function('reverse', expression)
-    def keys(expression) = function('keys', expression)
-    def properties(expression) = function('properties', expression)
-    def rand = function('rand')
-    def datetime(*) = function('datetime', *)
-    def localdatetime(*) = function('localdatetime', *)
-    def date(*) = function('date', *)
-    def time(*) = function('time', *)
-    def localtime(*) = function('localtime', *)
-    def duration(*) = function('duration', *)
-
-    # `id(n)`; deprecated in Neo4j 5 in favour of {#element_id}, kept for parity.
-    def id(element) = FunctionInvocation.new('id', [element.required_symbolic_name])
-
     # A map projection on a name: `Cypher.create_projection(:n, 'title')` → `n{.title}`.
     def create_projection(name, *entries) = MapProjection.new(SymbolicName.of(name), entries.flatten)
-    def to_integer(expression) = function('toInteger', expression)
-    def to_float(expression) = function('toFloat', expression)
-    def to_string(expression) = function('toString', expression)
-    def to_boolean(expression) = function('toBoolean', expression)
-    def sum(expression) = function('sum', expression)
-    def avg(expression) = function('avg', expression)
-    def min(expression) = function('min', expression)
-    def max(expression) = function('max', expression)
-    def nodes(path) = function('nodes', path.required_symbolic_name)
-    def relationships(path) = function('relationships', path.required_symbolic_name)
-    def length(path) = function('length', path.required_symbolic_name)
-    def labels(node) = FunctionInvocation.new('labels', [node.required_symbolic_name])
-    def element_id(element) = FunctionInvocation.new('elementId', [element.required_symbolic_name])
-
-    # A call of any function with the given arguments, coerced to expressions.
-    def function(name, *arguments) = FunctionInvocation.new(name, arguments.map { |a| Expression.coerce(a) })
 
     def sort(expression) = SortItem.new(Expression.coerce(expression), nil)
 
-    def size(expression_or_pattern) = FunctionInvocation.new('size', [expression_or_pattern])
+    # `size(list)` or `size(pattern)`.
+    def size(expression_or_pattern)
+      argument = pattern?(expression_or_pattern) ? PatternExpression.new(expression_or_pattern) : expression_or_pattern
+      function('size', argument)
+    end
 
     # `count(expression)`, or `COUNT { pattern }` / `COUNT { statement }` for patterns and statements.
     def count(expression_or_pattern)
@@ -188,12 +153,6 @@ module CypherDSL
       FunctionInvocation.new('count', [Expression.coerce(expression_or_pattern)])
     end
 
-    # `point({longitude: x, latitude: y})` and `point.withinBBox(point, lowerLeft, upperRight)`.
-    def coordinate(longitude, latitude) = point(map_of('longitude', longitude, 'latitude', latitude))
-    def within_bbox(point, lower_left, upper_right) = function('point.withinBBox', point, lower_left, upper_right)
-    def count_distinct(expression) = FunctionInvocation.new('count', [Expression.coerce(expression)], distinct: true)
-    def type(relationship) = FunctionInvocation.new('type', [relationship.required_symbolic_name])
-
     # `Cypher.call('db.labels')` / `Cypher.call('db', 'labels')`: a procedure call (see {StandaloneCall});
     # `Cypher.call(statement, imports…)`: a `CALL { subquery }`.
     def call(*arguments)
@@ -202,8 +161,12 @@ module CypherDSL
       StandaloneCall.new(arguments)
     end
 
-    # `Cypher.use('graph', statement)`: the statement prefixed with `USE graph`.
-    def use(graph, statement) = Statement.new([Clauses::Use.new(graph: graph.to_s)] + statement.clauses)
+    # `Cypher.use('graph', statement)` / `Cypher.use(Cypher.graph_by_name(name), statement)`:
+    # the statement prefixed with `USE graph`.
+    def use(graph, statement)
+      graph = graph.to_s unless graph.is_a?(Expression)
+      Statement.new([Clauses::Use.new(graph:)] + statement.clauses)
+    end
 
     # `Cypher.load_csv('file:///x.csv').as(:line)`.
     def load_csv(uri, with_headers: false) = StatementBuilder.new.load_csv(uri, with_headers:)
@@ -228,7 +191,6 @@ module CypherDSL
     def gte(left, right) = Expression.coerce(left).gte(right)
     def lt(left, right) = Expression.coerce(left).lt(right)
     def lte(left, right) = Expression.coerce(left).lte(right)
-    def coalesce(*expressions) = FunctionInvocation.new('coalesce', expressions.map { |e| Expression.coerce(e) })
 
     # --- statement builders -----------------------------------------------
 

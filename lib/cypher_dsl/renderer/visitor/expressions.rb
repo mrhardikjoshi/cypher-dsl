@@ -58,8 +58,16 @@ module CypherDSL
           when ListComprehension then render_list_comprehension(expression)
           when MapProjection then render_map_projection(expression)
           when LabelOperation then render_labels(expression.node, expression.labels)
+          when Reduction then render_reduction(expression)
+          when PatternExpression then render_pattern_expression(expression.pattern)
           else render_condition_or_operation(expression)
           end
+        end
+
+        def render_reduction(reduction)
+          accumulator = "#{render_expression(reduction.accumulator)} = #{render_expression(reduction.initial_value)}"
+          "reduce(#{accumulator}, #{render_expression(reduction.variable)} IN #{render_expression(reduction.list)} " \
+            "| #{render_expression(reduction.mapper)})"
         end
 
         def render_labels(node, labels)
@@ -247,24 +255,14 @@ module CypherDSL
         end
 
         def render_function_invocation(invocation)
-          arguments = invocation.arguments.map do |argument|
-            pattern_element?(argument) ? render_pattern_expression(argument) : render_expression(argument)
-          end
-          rendered = "#{invocation.function_name}(#{'DISTINCT ' if invocation.distinct}#{arguments.join(', ')})"
+          arguments = invocation.arguments.map { |argument| render_expression(argument) }
+          name = invocation.function_name
+          legacy = @configuration.dialect == Dialect::NEO4J_4
           # Neo4j 4 has no elementId(); the closest equivalent is the stringified internal id.
-          if invocation.function_name == 'elementId' && @configuration.dialect == Dialect::NEO4J_4
-            "toString(id(#{arguments.join(', ')}))"
-          else
-            rendered
-          end
-        end
+          return "toString(id(#{arguments.join(', ')}))" if name == 'elementId' && legacy
 
-        def pattern_element?(argument)
-          case argument
-          when RelationshipChain, Relationship then true
-          when Node then !argument.named?
-          else false
-          end
+          name = 'point.distance' if name == 'distance' && !legacy
+          "#{name}(#{'DISTINCT ' if invocation.distinct}#{arguments.join(', ')})"
         end
 
         def escape_schema_name(name)

@@ -38,6 +38,9 @@ Metrics/PerceivedComplexity:
 # Public names mirror the Java API (is_equal_to, is_null, …).
 Naming/PredicatePrefix:
   Enabled: false
+# Coordinates: atan2(y, x), cartesian(x, y).
+Naming/MethodParameterName:
+  AllowedNames: [x, y, id, as, at, in, to, by, io, os, pp]
 
 Style/Documentation:
   Enabled: false

@@ -102,7 +102,7 @@ module CypherDSL
         when Clauses::Call then render_call(clause)
         when Clauses::CallSubquery then render_call_subquery(clause)
         when Clauses::LoadCsv then render_load_csv(clause)
-        when Clauses::Use then "USE #{clause.graph}"
+        when Clauses::Use then "USE #{clause.graph.is_a?(String) ? clause.graph : render_expression(clause.graph)}"
         else raise ArgumentError, "Cannot render clause #{clause.inspect}"
         end
       end
