@@ -23,6 +23,14 @@ module CypherDSL
       # The parameters seen while rendering; see {Renderer#catalog}.
       def catalog = StatementCatalog.from_uses(@parameter_uses)
 
+      # A part of a statement on its own.
+      def render_fragment(fragment)
+        case fragment
+        when Search then render_search(fragment).lstrip
+        else render_expression(fragment)
+        end
+      end
+
       def render(statement)
         return render_union(statement) if statement.is_a?(UnionQuery)
 
@@ -215,8 +223,29 @@ module CypherDSL
 
       def render_match(clause)
         hints = clause.hints.map { |hint| "#{break_line}#{render_hint(hint)}" }
+        search = clause.search && render_search(clause.search)
         [('OPTIONAL ' if clause.optional), 'MATCH ', render_pattern_elements(clause.pattern_elements),
-         *hints, render_where(clause.where)].join
+         *hints, search, render_where(clause.where)].join
+      end
+
+      # `SEARCH name IN (VECTOR INDEX index FOR vector [WHERE …] LIMIT k) [SCORE AS score]`; pretty
+      # printed it sits indented under its MATCH with one option per line.
+      def render_search(search)
+        score = search.score_name && " SCORE AS #{render_expression(search.score_name)}"
+        name = render_expression(search.name)
+        return " SEARCH #{name} IN (#{search_options(search).join(' ')})#{score}" unless pretty?
+
+        body = nested { nested { search_options(search).join(break_line) } }
+        "#{break_line(@level + 1)}SEARCH #{name} IN (#{break_line(@level + 2)}#{body}#{break_line(@level + 1)})#{score}"
+      end
+
+      def search_options(search)
+        predicate = search.predicates.inject { |all, predicate| all.and(predicate) }
+        options = ["VECTOR INDEX #{Escaper.escape_if_necessary(search.index_name)}",
+                   "FOR #{render_expression(search.vector)}"]
+        options << "WHERE #{render_expression(predicate)}" if predicate
+        options << "LIMIT #{search.top_k}" if search.top_k
+        options
       end
 
       def render_hint(hint)

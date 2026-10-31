@@ -20,6 +20,12 @@ module CypherDSL
     end
 
     # A node without labels, optionally named.
+    # `Cypher.search(:movie).in('index').for_vector(v).limit(4).build`, see {Search}.
+    def search(name) = Search::Builder.new(name && SymbolicName.of(name))
+
+    # `vector([1, 2, 3], 3, INTEGER NOT NULL)`, see {VectorLiteral}.
+    def vector(elements, type = nil) = VectorLiteral.of(elements, type)
+
     # Label expressions: `Cypher.node(Cypher.exactly_label('A').or('B'))`, `Cypher.node(Cypher.all_labels($labels))`.
     def exactly_label(label) = Labels.exactly(label)
     def all_labels(expression) = Labels.all(expression)

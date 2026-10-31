@@ -20,7 +20,16 @@ module CypherDSL
     def match(*pattern_elements)
       optional = [true, false].include?(pattern_elements.first) ? pattern_elements.shift : false
       pattern_elements = pattern_elements.flatten.freeze
-      append(Clauses::Match.new(optional:, pattern_elements:, hints: [].freeze, where: nil), :condition)
+      append(Clauses::Match.new(optional:, pattern_elements:, hints: [].freeze, search: nil, where: nil), :condition)
+    end
+
+    # A vector `SEARCH` on the preceding MATCH; see {Search}.
+    def search(search)
+      update_last(:condition) do |clause|
+        raise ArgumentError, 'SEARCH needs a preceding MATCH.' unless clause.is_a?(Clauses::Match)
+
+        clause.with(search:)
+      end
     end
 
     def optional_match(*pattern_elements) = match(true, *pattern_elements)

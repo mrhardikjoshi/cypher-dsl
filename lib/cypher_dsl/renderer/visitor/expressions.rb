@@ -60,6 +60,7 @@ module CypherDSL
           when LabelOperation then render_labels(expression.node, expression.labels)
           when Reduction then render_reduction(expression)
           when PatternExpression then render_pattern_expression(expression.pattern)
+          when VectorLiteral then expression.as_string
           else render_condition_or_operation(expression)
           end
         end
