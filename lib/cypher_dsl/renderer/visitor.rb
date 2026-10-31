@@ -1,0 +1,182 @@
+# frozen_string_literal: true
+
+module CypherDSL
+  class Renderer
+    # Walks a statement and produces Cypher text. One instance per render call:
+    # it remembers which named nodes have already been rendered with their
+    # content, so later occurrences render as `(name)` only.
+    class Visitor
+      def initialize(configuration)
+        @configuration = configuration
+        @visited_names = Set.new
+      end
+
+      def render(statement)
+        statement.clauses.map { |clause| render_clause(clause) }.join(' ')
+      end
+
+      private
+
+      # --- clauses ---------------------------------------------------------
+
+      def render_clause(clause)
+        case clause
+        when Clauses::Match then render_match(clause)
+        when Clauses::With then render_projection('WITH', clause, clause.where)
+        when Clauses::Return then render_projection('RETURN', clause, nil)
+        when Clauses::Set then "SET #{clause.operations.map { |operation| render_expression(operation) }.join(', ')}"
+        else raise ArgumentError, "Cannot render clause #{clause.inspect}"
+        end
+      end
+
+      def render_match(clause)
+        patterns = clause.pattern_elements.map { |element| render_pattern_element(element) }.join(', ')
+        [('OPTIONAL ' if clause.optional), 'MATCH ', patterns, render_where(clause.where)].join
+      end
+
+      def render_projection(keyword, clause, where)
+        items = clause.items.map { |item| render_expression(item) }.join(', ')
+        parts = ["#{keyword} #{'DISTINCT ' if clause.distinct}#{items}"]
+        parts << "ORDER BY #{clause.order.items.map { |item| render_sort_item(item) }.join(', ')}" if clause.order
+        parts << "SKIP #{render_expression(clause.skip)}" if clause.skip
+        parts << "LIMIT #{render_expression(clause.limit)}" if clause.limit
+        parts << "WHERE #{render_expression(where)}" if where
+        parts.join(' ')
+      end
+
+      def render_where(condition)
+        condition && " WHERE #{render_expression(condition)}"
+      end
+
+      def render_sort_item(item)
+        [render_expression(item.expression), item.direction&.to_s&.upcase].compact.join(' ')
+      end
+
+      # --- pattern elements -----------------------------------------------
+
+      def render_pattern_element(element)
+        case element
+        when Node then render_node(element)
+        when Relationship
+          render_node(element.left) + render_relationship_details(element) + render_node(element.right)
+        when RelationshipChain then render_chain(element)
+        else raise ArgumentError, "Cannot render pattern element #{element.inspect}"
+        end
+      end
+
+      def render_chain(chain)
+        chain.relationships.each_with_index.map do |relationship, index|
+          left = index.zero? ? render_node(relationship.left) : ''
+          left + render_relationship_details(relationship) + render_node(relationship.right)
+        end.join
+      end
+
+      def render_node(node)
+        name = node.symbolic_name&.value
+        return "(#{name})" if name && @visited_names.include?(name)
+
+        @visited_names << name if name
+        labels = node.labels.map { |label| ":#{escape_schema_name(label)}" }.join
+        properties = node.properties && " #{render_expression(node.properties)}"
+        "(#{name}#{labels}#{properties})"
+      end
+
+      def render_relationship_details(relationship)
+        details = relationship.details
+        inner = details.empty? ? '' : "[#{render_details_content(details)}]"
+        case relationship.direction
+        when :ltr then "-#{inner}->"
+        when :rtl then "<-#{inner}-"
+        else "-#{inner}-"
+        end
+      end
+
+      def render_details_content(details)
+        types = details.types.map { |type| escape_schema_name(type) }.join('|')
+        [
+          details.symbolic_name&.value,
+          (":#{types}" unless types.empty?),
+          render_length(details),
+          (details.properties && " #{render_expression(details.properties)}")
+        ].join
+      end
+
+      def render_length(details)
+        return nil unless details.length?
+        return '*' if details.unbounded && details.min.nil? && details.max.nil?
+
+        "*#{details.min}..#{details.max}"
+      end
+
+      # --- expressions -----------------------------------------------------
+
+      def render_expression(expression)
+        case expression
+        when SymbolicName then Escaper.escape_if_necessary(expression.value)
+        when Node, Relationship then render_expression(expression.required_symbolic_name)
+        when Property then render_property(expression)
+        when Literal then render_literal(expression.value)
+        when MapExpression then render_map(expression)
+        when Parameter then "$#{expression.name}"
+        when Asterisk then '*'
+        when AliasedExpression
+          "#{render_expression(expression.delegate)} AS #{render_expression(expression.alias_name)}"
+        when Comparison then render_comparison(expression)
+        when CompoundCondition then render_compound_condition(expression)
+        when Operation
+          "#{render_expression(expression.left)} #{expression.operator} #{render_expression(expression.right)}"
+        when FunctionInvocation then render_function_invocation(expression)
+        when SortItem then render_sort_item(expression)
+        else raise ArgumentError, "Cannot render expression #{expression.inspect}"
+        end
+      end
+
+      def render_property(property)
+        names = property.names.map { |name| Escaper.escape_if_necessary(name) }
+        "#{render_expression(property.container)}.#{names.join('.')}"
+      end
+
+      def render_literal(value)
+        case value
+        when String then "'#{value.gsub('\\') { '\\\\' }.gsub("'") { "\\'" }}'"
+        when nil then 'NULL'
+        when true, false, Numeric then value.to_s
+        when Array then "[#{value.map { |element| render_expression(Expression.coerce(element)) }.join(', ')}]"
+        else raise ArgumentError, "Cannot render literal #{value.inspect}"
+        end
+      end
+
+      def render_map(map)
+        "{#{map.entries.map { |key, value| "#{Escaper.escape_if_necessary(key)}: #{render_expression(value)}" }.join(', ')}}"
+      end
+
+      def render_comparison(comparison)
+        left = render_expression(comparison.left)
+        return "#{left} #{comparison.operator}" if comparison.unary?
+
+        "#{left} #{comparison.operator} #{render_expression(comparison.right)}"
+      end
+
+      def render_compound_condition(condition)
+        return "NOT (#{render_expression(condition.conditions.first)})" if condition.operator == 'NOT'
+
+        "(#{condition.conditions.map { |inner| render_expression(inner) }.join(" #{condition.operator} ")})"
+      end
+
+      def render_function_invocation(invocation)
+        arguments = invocation.arguments.map do |argument|
+          pattern_element?(argument) ? render_pattern_element(argument) : render_expression(argument)
+        end
+        "#{invocation.function_name}(#{arguments.join(', ')})"
+      end
+
+      def pattern_element?(argument)
+        argument.is_a?(RelationshipChain) || argument.is_a?(Relationship) || argument.is_a?(Node) && !argument.named?
+      end
+
+      def escape_schema_name(name)
+        @configuration.always_escape_names ? Escaper.escape(name) : Escaper.escape_if_necessary(name)
+      end
+    end
+  end
+end

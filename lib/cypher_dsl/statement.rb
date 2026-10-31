@@ -1,0 +1,28 @@
+# frozen_string_literal: true
+
+module CypherDSL
+  # A built, immutable statement: an ordered list of clauses. Rendering with the
+  # default renderer is memoised, as in the Java `Statement#getCypher`.
+  class Statement
+    attr_reader :clauses
+
+    def initialize(clauses)
+      @clauses = clauses.freeze
+      @cypher = nil
+    end
+
+    def cypher
+      @cypher ||= Renderer.default.render(self).freeze
+    end
+
+    # True when the statement ends with RETURN, i.e. produces rows.
+    def result_statement? = clauses.last.is_a?(Clauses::Return)
+
+    # True when the statement contains no WITH, i.e. has a single query part.
+    def single_query? = !multi_part_query?
+
+    def multi_part_query? = clauses.any?(Clauses::With)
+
+    def to_s = cypher
+  end
+end
