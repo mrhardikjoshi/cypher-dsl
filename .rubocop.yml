@@ -60,3 +60,6 @@ RSpec/NestedGroups:
 
 RSpec/MultipleMemoizedHelpers:
   Max: 10
+# Helper names mirror the variables of the upstream Java tests (create_this1, create_var0, …).
+RSpec/IndexedLet:
+  Enabled: false

@@ -24,7 +24,13 @@ module CypherDSL
 
     def optional_match(*pattern_elements) = match(true, *pattern_elements)
 
-    def where(condition) = update_last(:condition) { |clause| clause.with(where: Condition.coerce(condition)) }
+    def where(condition)
+      if @clauses.last.is_a?(Clauses::CallSubquery)
+        raise ArgumentError, 'A CALL{} clause requires to WITH before you can add further conditions'
+      end
+
+      update_last(:condition) { |clause| clause.with(where: Condition.coerce(condition)) }
+    end
 
     def and(argument)
       case @mode
@@ -136,6 +142,9 @@ module CypherDSL
     def as_condition = ExistsCondition.new(build)
 
     # --- finishing -------------------------------------------------------
+
+    # Continues with the clauses of another statement, e.g. after a `CALL … YIELD`.
+    def and_then(statement) = StatementBuilder.new(@clauses + statement.clauses, nil)
 
     def finish = append(Clauses::Finish.new, nil)
 

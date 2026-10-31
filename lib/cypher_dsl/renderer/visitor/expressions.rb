@@ -248,7 +248,7 @@ module CypherDSL
 
         def render_function_invocation(invocation)
           arguments = invocation.arguments.map do |argument|
-            pattern_element?(argument) ? render_pattern_element(argument) : render_expression(argument)
+            pattern_element?(argument) ? render_pattern_expression(argument) : render_expression(argument)
           end
           rendered = "#{invocation.function_name}(#{'DISTINCT ' if invocation.distinct}#{arguments.join(', ')})"
           # Neo4j 4 has no elementId(); the closest equivalent is the stringified internal id.

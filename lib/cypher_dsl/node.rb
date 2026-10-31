@@ -33,8 +33,11 @@ module CypherDSL
 
     # The name of this node, generating one if it has none (and keeping it, as in Java).
     def required_symbolic_name
-      @symbolic_name ||= SymbolicName.unresolved(labels.first&.downcase || 'n') # rubocop:disable Naming/MemoizedInstanceVariableName
+      @symbolic_name ||= SymbolicName.unresolved(name_hint) # rubocop:disable Naming/MemoizedInstanceVariableName
     end
+
+    # The first plain label, lower-cased, or `n` for nodes without one.
+    def name_hint = labels.first.is_a?(String) ? labels.first.downcase : 'n'
     alias as_expression required_symbolic_name
 
     def property(*names) = Property.new(required_symbolic_name, names)
@@ -61,6 +64,15 @@ module CypherDSL
     def relationship_to(other, *types) = Relationship.create(self, :ltr, other, types)
     def relationship_from(other, *types) = Relationship.create(self, :rtl, other, types)
     def relationship_between(other, *types) = Relationship.create(self, :uni, other, types)
+
+    # `relationship_with(other, Relationship::Direction::LTR, 'TYPE')`: the direction as a value.
+    def relationship_with(other, direction, *types)
+      unless Relationship::Direction::ALL.include?(direction)
+        raise ArgumentError, "Unknown direction #{direction.inspect}, use one of Relationship::Direction"
+      end
+
+      Relationship.create(self, direction, other, types)
+    end
 
     private
 

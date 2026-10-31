@@ -15,6 +15,14 @@ module CypherDSL
       def length? = unbounded || !min.nil? || !max.nil?
     end
 
+    # The direction of a relationship pattern, for {Node#relationship_with}.
+    module Direction
+      LTR = :ltr
+      RTL = :rtl
+      UNI = :uni
+      ALL = [LTR, RTL, UNI].freeze
+    end
+
     attr_reader :left, :right, :direction, :details
 
     def self.create(left, direction, right, types)

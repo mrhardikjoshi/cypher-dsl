@@ -12,7 +12,8 @@ module CypherDSL
     # map (`Cypher.node('Test', Cypher.map_of(…))`) sets its properties.
     def node(primary_label, *additional_labels)
       properties = additional_labels.pop if [MapExpression, Hash].any? { |type| additional_labels.last.is_a?(type) }
-      node = Node.new(labels: [primary_label, *additional_labels].map(&:to_s))
+      labels = [primary_label, *additional_labels].map { |label| label.is_a?(LabelExpression) ? label : label.to_s }
+      node = Node.new(labels:)
       properties ? node.with_properties(properties) : node
     end
 

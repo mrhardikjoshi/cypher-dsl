@@ -46,10 +46,30 @@ module CypherDSL
 
           @visited_names << name if name && !@in_pattern_expression
           name = nil if @in_pattern_expression
-          labels = node.labels.map { |label| ":#{escape_schema_name(label)}" }.join
+          labels = node.labels.map { |label| ":#{render_label(label)}" }.join
           properties = node.properties && " #{render_expression(node.properties)}"
           where = node.where_condition && " WHERE #{render_expression(node.where_condition)}"
           "(#{name}#{labels}#{properties}#{where})"
+        end
+
+        def render_label(label)
+          label.is_a?(LabelExpression) ? render_label_expression(label) : escape_schema_name(label)
+        end
+
+        # `A|B`, `A&B`, `!A`; operands of another kind are parenthesised.
+        def render_label_expression(expression)
+          case expression.type
+          when :leaf then escape_schema_name(expression.value)
+          when :negation then "!#{render_label_operand(expression.operands.first, expression)}"
+          else
+            operator = expression.type == :conjunction ? '&' : '|'
+            expression.operands.map { |operand| render_label_operand(operand, expression) }.join(operator)
+          end
+        end
+
+        def render_label_operand(operand, parent)
+          rendered = render_label_expression(operand)
+          operand.leaf? || operand.type == parent.type || operand.type == :negation ? rendered : "(#{rendered})"
         end
 
         # A pattern used as a condition: known names render bare, unknown ones are dropped.
