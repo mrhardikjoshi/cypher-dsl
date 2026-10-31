@@ -67,6 +67,15 @@ module CypherDSL
     # `Cypher.path(:p).defined_by(pattern)` for `MATCH p = pattern`; `.get` for the bare name.
     def path(name) = NamedPath::Ongoing.new(SymbolicName.of(name))
 
+    # Path selectors, `Cypher.any_shortest.named(:p).defined_by(pattern)` → `p = ANY pattern`.
+    def any_shortest = NamedPath::Selector.new('ANY')
+    def all_shortest = NamedPath::Selector.new('ALL SHORTEST')
+    def shortest_k(count) = NamedPath::Selector.shortest_k(count)
+    def shortest_k_groups(count) = NamedPath::Selector.shortest_k(count, groups: true)
+
+    # `EXISTS { pattern }`.
+    def exists(pattern_or_statement) = ExistsCondition.new(pattern_or_statement)
+
     # List predicates: `Cypher.all(:x).in(list).where(condition)`.
     def all(variable) = ListPredicate::Ongoing.new('all', variable)
     def any(variable) = ListPredicate::Ongoing.new('any', variable)

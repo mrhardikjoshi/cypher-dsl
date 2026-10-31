@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
 # Translated from CypherIT.java, the tests directly in the class (not nested).
-#
-# Skipped for now:
-# - PathMatchingAndAssignment: quantified path patterns, SHORTEST, list comprehensions.
 module CypherDSL
   RSpec.describe 'CypherIT' do
     let(:bike_node) { Cypher.node('Bike').named(:b) }

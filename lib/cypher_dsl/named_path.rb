@@ -1,16 +1,19 @@
 # frozen_string_literal: true
 
 module CypherDSL
-  # A named path `p = (a)-[]->(b)`, usable as a pattern element in MATCH and as
-  # an expression (`p`) afterwards. Built with `Cypher.path(:p).defined_by(pattern)`.
+  # A named path `p = (a)-[]->(b)`, optionally with a path selector such as
+  # `p = ANY SHORTEST …`. Usable as a pattern element in MATCH and as an
+  # expression (`p`) afterwards. Built with `Cypher.path(:p).defined_by(pattern)`
+  # or `Cypher.any_shortest.named(:p).defined_by(pattern)`.
   class NamedPath
     include Expression
 
-    attr_reader :symbolic_name, :pattern
+    attr_reader :symbolic_name, :pattern, :selector
 
-    def initialize(symbolic_name, pattern)
+    def initialize(symbolic_name, pattern, selector: nil)
       @symbolic_name = symbolic_name
       @pattern = pattern
+      @selector = selector
       freeze
     end
 
@@ -19,15 +22,38 @@ module CypherDSL
 
     # `Cypher.path(:p)`: waiting for `defined_by`, or `get` for a bare reference to the name.
     class Ongoing
-      def initialize(symbolic_name)
+      def initialize(symbolic_name, selector: nil)
         @symbolic_name = symbolic_name
+        @selector = selector
         freeze
       end
 
       # Defining a path by another named path reuses that path.
-      def defined_by(pattern) = pattern.is_a?(NamedPath) ? pattern : NamedPath.new(@symbolic_name, pattern)
+      def defined_by(pattern)
+        return pattern if pattern.is_a?(NamedPath)
+
+        NamedPath.new(@symbolic_name, pattern, selector: @selector)
+      end
 
       def get = @symbolic_name
+    end
+
+    # `Cypher.any_shortest` and friends: a path selector waiting for `named`.
+    class Selector
+      attr_reader :keyword
+
+      def self.shortest_k(count, groups: false)
+        raise ArgumentError, 'The path count needs to be greater than 0.' unless count.positive?
+
+        new("SHORTEST #{count}#{' GROUPS' if groups}")
+      end
+
+      def initialize(keyword)
+        @keyword = keyword
+        freeze
+      end
+
+      def named(name) = Ongoing.new(SymbolicName.of(name), selector: self)
     end
   end
 end

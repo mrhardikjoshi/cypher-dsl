@@ -27,6 +27,9 @@ module CypherDSL
 
     def resolved? = !value.nil?
 
+    # A name is its own name; lets names stand in for named elements (e.g. `nodes(p)`).
+    def required_symbolic_name = self
+
     # The map projection `name{…}`.
     def project(*entries) = MapProjection.new(self, entries.flatten)
 

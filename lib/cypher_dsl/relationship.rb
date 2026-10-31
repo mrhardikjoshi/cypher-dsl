@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
 module CypherDSL
-  # A relationship pattern between two nodes, `(a)-[r:TYPE*1..3 {props}]->(b)`.
+  # A relationship pattern between two nodes, `(a)-[r:TYPE*1..3 {props} WHERE …]->{1,3}(b)`.
   # Used as an expression it stands for its symbolic name.
   class Relationship
     include Expression
 
-    # Everything between the brackets plus the direction.
-    Details = Data.define(:types, :symbolic_name, :properties, :min, :max, :unbounded) do
+    # Everything between the brackets plus the direction and a relationship quantifier.
+    Details = Data.define(:types, :symbolic_name, :properties, :min, :max, :unbounded, :where, :quantifier) do
       def empty?
-        symbolic_name.nil? && types.empty? && properties.nil? && !length?
+        symbolic_name.nil? && types.empty? && properties.nil? && !length? && where.nil?
       end
 
       def length? = unbounded || !min.nil? || !max.nil?
@@ -19,7 +19,7 @@ module CypherDSL
 
     def self.create(left, direction, right, types)
       details = Details.new(types: types.map(&:to_s).freeze, symbolic_name: nil, properties: nil,
-                            min: nil, max: nil, unbounded: false)
+                            min: nil, max: nil, unbounded: false, where: nil, quantifier: nil)
       new(left, direction, right, details)
     end
 
@@ -51,6 +51,15 @@ module CypherDSL
     def max(maximum) = with_details(max: maximum)
     def length(minimum, maximum) = with_details(min: minimum, max: maximum)
     def unbounded = with_details(unbounded: true)
+
+    # The inline predicate `-[r WHERE condition]->`.
+    def where(condition) = with_details(where: Condition.coerce(condition))
+
+    # `-[:X]->{1,3}`: a quantifier on the relationship only.
+    def quantify_relationship(quantifier) = with_details(quantifier:)
+
+    # `((a)-[:X]->(b)){1,3}`: a quantifier on the whole pattern.
+    def quantify(quantifier) = QuantifiedPathPattern.new(self, quantifier)
 
     def property(*names) = Property.new(required_symbolic_name, names)
 

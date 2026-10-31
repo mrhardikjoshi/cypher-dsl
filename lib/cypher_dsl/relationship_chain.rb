@@ -22,6 +22,11 @@ module CypherDSL
     def max(maximum) = update_last { |relationship| relationship.max(maximum) }
     def length(minimum, maximum) = update_last { |relationship| relationship.length(minimum, maximum) }
     def unbounded = update_last(&:unbounded)
+    def where(condition) = update_last { |relationship| relationship.where(condition) }
+    def quantify_relationship(quantifier) = update_last { it.quantify_relationship(quantifier) }
+
+    # `((a)-[]->(b)-[]->(c)){1,3}`: a quantifier on the whole chain.
+    def quantify(quantifier) = QuantifiedPathPattern.new(self, quantifier)
 
     private
 

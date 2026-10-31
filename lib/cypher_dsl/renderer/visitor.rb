@@ -184,9 +184,21 @@ module CypherDSL
         when Relationship
           render_node(element.left) + render_relationship_details(element) + render_node(element.right)
         when RelationshipChain then render_chain(element)
-        when NamedPath then "#{render_expression(element.symbolic_name)} = #{render_pattern_element(element.pattern)}"
+        when NamedPath then render_named_path(element)
+        when QuantifiedPathPattern then render_quantified_path_pattern(element)
         else raise ArgumentError, "Cannot render pattern element #{element.inspect}"
         end
+      end
+
+      def render_named_path(path)
+        selector = path.selector && "#{path.selector.keyword} "
+        "#{render_expression(path.symbolic_name)} = #{selector}#{render_pattern_element(path.pattern)}"
+      end
+
+      def render_quantified_path_pattern(quantified)
+        inner = render_pattern_element(quantified.pattern)
+        inner += " WHERE #{render_expression(quantified.where_condition)}" if quantified.where_condition
+        "(#{inner})#{quantified.quantifier.to_cypher}"
       end
 
       def render_chain(chain)
@@ -203,17 +215,19 @@ module CypherDSL
         @visited_names << name if name
         labels = node.labels.map { |label| ":#{escape_schema_name(label)}" }.join
         properties = node.properties && " #{render_expression(node.properties)}"
-        "(#{name}#{labels}#{properties})"
+        where = node.where_condition && " WHERE #{render_expression(node.where_condition)}"
+        "(#{name}#{labels}#{properties}#{where})"
       end
 
       def render_relationship_details(relationship)
         details = relationship.details
         empty = details.empty? && relationship.symbolic_name.nil?
         inner = empty ? '' : "[#{render_details_content(relationship)}]"
+        quantifier = details.quantifier&.to_cypher
         case relationship.direction
-        when :ltr then "-#{inner}->"
-        when :rtl then "<-#{inner}-"
-        else "-#{inner}-"
+        when :ltr then "-#{inner}->#{quantifier}"
+        when :rtl then "<-#{inner}-#{quantifier}"
+        else "-#{inner}-#{quantifier}"
         end
       end
 
@@ -224,7 +238,8 @@ module CypherDSL
           relationship.symbolic_name && resolve_name(relationship.symbolic_name),
           (":#{types}" unless types.empty?),
           render_length(details),
-          details.properties && " #{render_expression(details.properties)}"
+          details.properties && " #{render_expression(details.properties)}",
+          details.where && " WHERE #{render_expression(details.where)}"
         ].join
       end
 
@@ -299,6 +314,7 @@ module CypherDSL
         when CompoundCondition then render_compound_condition(expression)
         when ConstantCondition then expression.value.to_s
         when ExpressionCondition then render_expression(expression.expression)
+        when ExistsCondition then render_exists(expression)
         when RelationshipPatternCondition then render_pattern_element(expression.pattern)
         when ListPredicate then render_list_predicate(expression)
         when HasLabelCondition then render_labels(expression.node, expression.labels)
@@ -314,6 +330,12 @@ module CypherDSL
 
         rendered = "#{left} #{operation.operator} #{right}"
         operation.assignment? ? rendered : "(#{rendered})"
+      end
+
+      def render_exists(condition)
+        body = condition.body
+        rendered = body.is_a?(Statement) ? render_subquery(body) : render_pattern_element(body)
+        "EXISTS { #{rendered} }"
       end
 
       def render_list_predicate(predicate)

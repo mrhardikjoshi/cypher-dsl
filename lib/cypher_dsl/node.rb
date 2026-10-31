@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module CypherDSL
-  # A node pattern `(name:Label {props})`. Used as an expression it stands for
-  # its symbolic name.
+  # A node pattern `(name:Label {props} WHERE condition)`. Used as an expression
+  # it stands for its symbolic name.
   #
   # Nodes are value objects; the one piece of lazily computed state is the
   # generated name an unnamed node receives when something references it, as
@@ -10,20 +10,24 @@ module CypherDSL
   class Node
     include Expression
 
-    attr_reader :labels, :properties
+    attr_reader :labels, :properties, :where_condition
 
     # The explicit name, or the generated one once {#required_symbolic_name} was called.
     attr_reader :symbolic_name
 
-    def initialize(labels:, symbolic_name: nil, properties: nil)
+    def initialize(labels:, symbolic_name: nil, properties: nil, where_condition: nil)
       @labels = labels.freeze
       @symbolic_name = symbolic_name
       @properties = properties
+      @where_condition = where_condition
     end
 
     def named(name) = with(symbolic_name: SymbolicName.of(name))
 
     def with_properties(*keys_and_values) = with(properties: MapExpression.of(*keys_and_values))
+
+    # The inline predicate `(n WHERE condition)`.
+    def where(condition) = with(where_condition: Condition.coerce(condition))
 
     def named? = !@symbolic_name.nil?
 
@@ -60,7 +64,7 @@ module CypherDSL
     private
 
     def with(**changes)
-      Node.new(labels:, symbolic_name: @symbolic_name, properties:, **changes)
+      Node.new(labels:, symbolic_name: @symbolic_name, properties:, where_condition:, **changes)
     end
   end
 end

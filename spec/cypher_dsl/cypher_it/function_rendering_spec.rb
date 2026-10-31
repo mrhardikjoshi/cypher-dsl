@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
 # Translated from CypherIT.java, nested class FunctionRendering.
-#
-# Skipped for now:
-# - functionsBasedOnRelationships: needs `any_shortest().named(p).defined_by(…)` (path patterns, pending).
 module CypherDSL
   RSpec.describe 'CypherIT / FunctionRendering' do
     let(:user_node) { Cypher.node('User').named(:u) }
@@ -67,6 +64,26 @@ module CypherDSL
                         .build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN coalesce(NULL, u.field) AS p')
+    end
+
+    it 'functionsBasedOnRelationships' do # GH-257
+      expected = "MATCH p = ANY (bacon:`Person` {name: 'Kevin Bacon'})-[*]-(meg:`Person` {name: 'Meg Ryan'}) RETURN p"
+
+      relationship = Cypher.node('Person')
+                           .named(:bacon)
+                           .with_properties('name', Cypher.literal_of('Kevin Bacon'))
+                           .relationship_between(Cypher.node('Person').named(:meg).with_properties('name', Cypher.literal_of('Meg Ryan')))
+                           .unbounded
+      statement = Cypher.match(Cypher.any_shortest.named(:p).defined_by(relationship))
+                        .returning(:p)
+                        .build
+
+      expect(renderer.render(statement)).to eq(expected)
+
+      p = Cypher.name(:p)
+      statement = Cypher.match(Cypher.any_shortest.named(p).defined_by(relationship)).returning(p).build
+
+      expect(renderer.render(statement)).to eq(expected)
     end
   end
 end
