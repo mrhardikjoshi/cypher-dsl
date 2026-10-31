@@ -66,6 +66,7 @@ module CypherDSL
         def with_pretty_print(value) = option(:pretty_print, value)
         def with_indent_size(size) = option(:indent_size, size)
         def with_indent_style(style) = option(:indent_style, style)
+
         def disable_dynamic_labels(value = true) # rubocop:disable Style/OptionalBooleanParameter -- Java signature
           option(:disable_dynamic_labels, value)
         end
