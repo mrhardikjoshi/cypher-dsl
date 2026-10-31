@@ -7,7 +7,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'shouldRenderDeleteWithoutReturn' do
+    it 'renders delete without return' do
       statement = Cypher.match(user_node).detach_delete(user_node).build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) DETACH DELETE u')
@@ -33,7 +33,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`), (b:`Bike`) DELETE u, b')
     end
 
-    it 'shouldRenderDeleteBasedOnExpressionCollectionWithoutReturn' do
+    it 'renders delete based on expression collection without return' do
       statement = Cypher.match(user_node)
                         .detach_delete([user_node.required_symbolic_name])
                         .build
@@ -61,7 +61,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`), (b:`Bike`) DELETE u, b')
     end
 
-    it 'shouldRenderDeleteWithReturn' do
+    it 'renders delete with return' do
       statement = Cypher.match(user_node).detach_delete(user_node).returning(user_node).build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) DETACH DELETE u RETURN u')
@@ -95,7 +95,7 @@ module CypherDSL
       )
     end
 
-    it 'shouldRenderNodeDelete' do
+    it 'renders node delete' do
       n = Cypher.any_node(:n)
       r = n.relationship_between(Cypher.any_node).named(:r0)
       statement = Cypher.match(n)
@@ -107,7 +107,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (n) WHERE id(n) = 4711 OPTIONAL MATCH (n)-[r0]-() DELETE r0, n')
     end
 
-    it 'shouldRenderChainedDeletes' do
+    it 'renders chained deletes' do
       n = Cypher.any_node(:n)
       r = n.relationship_between(Cypher.any_node).named(:r0)
       statement = Cypher.match(n)

@@ -6,7 +6,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'shouldRenderRemoveOnNodes' do
+    it 'renders remove on nodes' do
       statement = Cypher.match(user_node).remove(user_node, 'A', 'B').returning(user_node).build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) REMOVE u:`A`:`B` RETURN u')
@@ -21,7 +21,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) WITH u SET u:`A`:`B` REMOVE u:`C`:`D` RETURN u')
     end
 
-    it 'shouldRenderRemoveOfProperties' do
+    it 'renders remove of properties' do
       statement = Cypher.match(user_node)
                         .remove(user_node.property(:a), user_node.property(:b))
                         .returning(user_node)

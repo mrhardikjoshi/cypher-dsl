@@ -8,7 +8,7 @@ module CypherDSL
   RSpec.describe 'ParameterIT' do
     let(:user_node) { Cypher.node('User').named(:u) }
 
-    it 'shouldCollectParameters' do
+    it 'collects parameters' do
       statement = Cypher.match(user_node)
                         .where(user_node.property(:name).is_equal_to(Cypher.parameter(:name, 'Neo')))
                         .returning(user_node)
@@ -19,7 +19,7 @@ module CypherDSL
       expect(statement.catalog.parameter_names).to contain_exactly('param', 'name')
     end
 
-    it 'shouldCollectParametersOnlyOnce' do
+    it 'collects parameters only once' do
       statement = Cypher.match(user_node)
                         .where(user_node.property(:cnt).is_equal_to(Cypher.parameter(:param, 5)))
                         .and(Cypher.anon_parameter('y').is_true)
@@ -33,7 +33,7 @@ module CypherDSL
       expect(statement.catalog.parameters).to eq('param' => 5, 'pcdsl01' => 'y', 'pcdsl02' => 'z')
     end
 
-    it 'equalsShouldWork' do
+    it 'equals should work' do
       p1 = Cypher.anon_parameter('y')
       p2 = Cypher.anon_parameter('y')
       p3 = Cypher.anon_parameter('z')
@@ -44,7 +44,7 @@ module CypherDSL
       expect(p1).not_to eq(p4)
     end
 
-    it 'parameterNamesShouldBeSanitized' do
+    it 'parameter names should be sanitized' do
       p1 = Cypher.parameter('pcdsl01', 'z')
       expect(p1.to_s).to eq('$pcdsl01')
 
@@ -52,7 +52,7 @@ module CypherDSL
       expect(p2.to_s).to eq("$`Hallo ' `` das`")
     end
 
-    it 'shouldDealWithNullValues' do
+    it 'deals with null values' do
       statement = Cypher.match(user_node)
                         .set(user_node.property(:name).to(Cypher.parameter(:param).with_value(nil)))
                         .returning(user_node)
@@ -63,7 +63,7 @@ module CypherDSL
     end
 
     ['x', nil].each do |value|
-      it "shouldFailWithNoValueVsNull (bound first, value #{value.inspect})" do
+      it "fails with no value vs null (bound first, value #{value.inspect})" do
         statement = Cypher.match(user_node)
                           .set(user_node.property(:name).to(Cypher.parameter(:param).with_value(value)),
                                user_node.property(:firstName).to(Cypher.parameter(:param)))
@@ -72,7 +72,7 @@ module CypherDSL
         expect { statement.catalog }.to raise_error(ConflictingParametersException)
       end
 
-      it "shouldFailWithNoValueVsNull (unbound first, value #{value.inspect})" do
+      it "fails with no value vs null (unbound first, value #{value.inspect})" do
         statement = Cypher.match(user_node)
                           .set(user_node.property(:firstName).to(Cypher.parameter(:param)),
                                user_node.property(:name).to(Cypher.parameter(:param).with_value(value)))
@@ -82,7 +82,7 @@ module CypherDSL
       end
     end
 
-    it 'shouldNotFailWithSameNameAndMultipleNulLValues' do
+    it 'does not fail with same name and multiple nul l values' do
       statement = Cypher.match(user_node)
                         .set(user_node.property(:name).to(Cypher.parameter(:param).with_value(nil)),
                              user_node.property(:firstName).to(Cypher.parameter(:param).with_value(nil)))
@@ -93,7 +93,7 @@ module CypherDSL
       expect(statement.catalog.parameters).to include('param' => nil)
     end
 
-    it 'shouldNotFailWithSameNameAndNoValue' do
+    it 'does not fail with same name and no value' do
       statement = Cypher.match(user_node)
                         .set(user_node.property(:name).to(Cypher.parameter(:param)),
                              user_node.property(:firstName).to(Cypher.parameter(:param)))
@@ -105,7 +105,7 @@ module CypherDSL
       expect(statement.catalog.parameter_names).to contain_exactly('param')
     end
 
-    it 'shouldFailOnDifferentBoundValues' do
+    it 'fails on different bound values' do
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .skip(Cypher.parameter(:param).with_value(1))
@@ -118,7 +118,7 @@ module CypherDSL
       end
     end
 
-    it 'shouldFailOnDifferentBoundValuesWhenSameValueIsUsedTwice' do
+    it 'fails on different bound values when same value is used twice' do
       statement = Cypher.match(user_node)
                         .where(user_node.internal_id.is_equal_to(Cypher.parameter(:param).with_value(5)))
                         .returning(user_node)
@@ -132,7 +132,7 @@ module CypherDSL
       end
     end
 
-    it 'shouldWorkWithUnions' do
+    it 'works with unions' do
       bike_node = Cypher.node('Bike').named(:b)
 
       statement1 = Cypher.match(bike_node)

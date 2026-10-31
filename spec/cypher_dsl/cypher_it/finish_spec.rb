@@ -6,17 +6,17 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'finishAfterMatch' do
+    it 'finish after match' do
       statement = Cypher.match(user_node).finish.build
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) FINISH')
     end
 
-    it 'finishAfterMatchWithWhere' do
+    it 'finish after match with where' do
       statement = Cypher.match(user_node).where(user_node.has_labels('User')).finish.build
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) WHERE u:`User` FINISH')
     end
 
-    it 'finishAfterSet' do
+    it 'finish after set' do
       statement = Cypher.match(user_node)
                         .set(user_node.property(:name).to(Cypher.literal_of('hans')))
                         .finish
@@ -24,17 +24,17 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (u:`User`) SET u.name = 'hans' FINISH")
     end
 
-    it 'finishAfterDelete' do
+    it 'finish after delete' do
       statement = Cypher.match(user_node).delete(user_node).finish.build
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) DELETE u FINISH')
     end
 
-    it 'finishAfterCreate' do
+    it 'finish after create' do
       statement = Cypher.create(user_node).finish.build
       expect(renderer.render(statement)).to eq('CREATE (u:`User`) FINISH')
     end
 
-    it 'finishAfterMerge' do
+    it 'finish after merge' do
       statement = Cypher.merge(user_node.relationship_to(user_node, 'KNOWS')).finish.build
       expect(renderer.render(statement)).to eq('MERGE (u:`User`)-[:`KNOWS`]->(u) FINISH')
     end

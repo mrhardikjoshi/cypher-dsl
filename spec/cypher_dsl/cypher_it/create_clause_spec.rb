@@ -7,7 +7,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'shouldRenderCreateWithoutReturn' do
+    it 'renders create without return' do
       statement = Cypher.create(user_node).build
 
       expect(renderer.render(statement)).to eq('CREATE (u:`User`)')
@@ -17,7 +17,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('CREATE (u:`User`)-[o:`OWNS`]->(b:`Bike`)')
     end
 
-    it 'shouldRenderCreateBasedOnPatternElementCollectionWithoutReturn' do # GH-189
+    it 'renders create based on pattern element collection without return' do # GH-189
       statement = Cypher.create([user_node]).build
 
       expect(renderer.render(statement)).to eq('CREATE (u:`User`)')
@@ -27,7 +27,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('CREATE (u:`User`)-[o:`OWNS`]->(b:`Bike`)')
     end
 
-    it 'shouldRenderMultipleCreatesWithoutReturn' do
+    it 'renders multiple creates without return' do
       statement = Cypher.create(user_node).create(bike_node).build
 
       expect(renderer.render(statement)).to eq('CREATE (u:`User`) CREATE (b:`Bike`)')
@@ -39,7 +39,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('CREATE (u:`User`)-[o:`OWNS`]->(b:`Bike`) CREATE (:`Other`)')
     end
 
-    it 'shouldRenderMultipleCreatesBasedOnPatternElementCollectionWithoutReturn' do
+    it 'renders multiple creates based on pattern element collection without return' do
       statement = Cypher.create(user_node).create([bike_node]).build
 
       expect(renderer.render(statement)).to eq('CREATE (u:`User`) CREATE (b:`Bike`)')
@@ -51,7 +51,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('CREATE (u:`User`)-[o:`OWNS`]->(b:`Bike`) CREATE (:`Other`)')
     end
 
-    it 'shouldRenderCreateReturn' do
+    it 'renders create return' do
       statement = Cypher.create(user_node).returning(user_node).build
 
       expect(renderer.render(statement)).to eq('CREATE (u:`User`) RETURN u')
@@ -71,7 +71,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('CREATE (u:`User`) RETURN u ORDER BY u.name SKIP 23 LIMIT 42')
     end
 
-    it 'shouldRenderMultipleCreatesReturn' do
+    it 'renders multiple creates return' do
       statement = Cypher.create(user_node).create(bike_node).returning(user_node).build
 
       expect(renderer.render(statement)).to eq('CREATE (u:`User`) CREATE (b:`Bike`) RETURN u')
@@ -85,7 +85,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('CREATE (u:`User`)-[o:`OWNS`]->(b:`Bike`) CREATE (:`Other`) RETURN u, o')
     end
 
-    it 'shouldRenderCreateWithWith' do
+    it 'renders create with with' do
       statement = Cypher.create(user_node).with(user_node).returning(user_node).build
 
       expect(renderer.render(statement)).to eq('CREATE (u:`User`) WITH u RETURN u')
@@ -98,13 +98,13 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("CREATE (u:`User`) WITH u SET u.x = 'y'")
     end
 
-    it 'matchShouldExposeCreate' do
+    it 'match should expose create' do
       statement = Cypher.match(user_node).create(user_node.relationship_to(bike_node, 'OWNS').named(:o)).build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) CREATE (u)-[o:`OWNS`]->(b:`Bike`)')
     end
 
-    it 'withShouldExposeCreate' do
+    it 'with should expose create' do
       statement = Cypher.match(user_node)
                         .with_distinct(user_node)
                         .create(user_node.relationship_to(bike_node, 'OWNS').named(:o))
@@ -120,7 +120,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) WITH DISTINCT u CREATE (u)-[o:`OWNS`]->(b:`Bike`)')
     end
 
-    it 'withWithStringVarsShouldWork' do
+    it 'with with string vars should work' do
       statement = Cypher.match(user_node)
                         .with_distinct('u')
                         .create(user_node.relationship_to(bike_node, 'OWNS').named(:o))

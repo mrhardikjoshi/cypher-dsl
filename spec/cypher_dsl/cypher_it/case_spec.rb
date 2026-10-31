@@ -6,7 +6,7 @@ module CypherDSL
     let(:node) { Cypher.node('a').named(:n) }
     let(:renderer) { Renderer.default }
 
-    it 'simpleCase' do
+    it 'simple case' do
       statement = Cypher.match(node)
                         .where(Cypher.case_expression(node.property(:value))
                                      .when(Cypher.literal_of('blubb'))
@@ -18,7 +18,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (n:`a`) WHERE CASE n.value WHEN 'blubb' THEN true END RETURN n")
     end
 
-    it 'simpleCaseWithElse' do
+    it 'simple case with else' do
       statement = Cypher.match(node)
                         .where(Cypher.case_expression(node.property(:value))
                                      .when(Cypher.literal_of('blubb'))
@@ -32,7 +32,7 @@ module CypherDSL
         .to eq("MATCH (n:`a`) WHERE CASE n.value WHEN 'blubb' THEN true ELSE false END RETURN n")
     end
 
-    it 'simpleCaseWithMultipleWhenThen' do
+    it 'simple case with multiple when then' do
       statement = Cypher.match(node)
                         .where(Cypher.case_expression(node.property(:value))
                                      .when(Cypher.literal_of('blubb'))
@@ -47,7 +47,7 @@ module CypherDSL
         .to eq("MATCH (n:`a`) WHERE CASE n.value WHEN 'blubb' THEN true WHEN 'bla' THEN false END RETURN n")
     end
 
-    it 'simpleCaseWithMultipleWhenThenAndElse' do
+    it 'simple case with multiple when then and else' do
       statement = Cypher.match(node)
                         .where(Cypher.case_expression(node.property(:value))
                                      .when(Cypher.literal_of('blubb'))
@@ -63,7 +63,7 @@ module CypherDSL
         .to eq("MATCH (n:`a`) WHERE CASE n.value WHEN 'blubb' THEN true WHEN 'bla' THEN false ELSE 1 END RETURN n")
     end
 
-    it 'genericCase' do
+    it 'generic case' do
       statement = Cypher.match(node)
                         .where(Cypher.case_expression
                                      .when(node.property(:value).is_equal_to(Cypher.literal_of('blubb')))
@@ -75,7 +75,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (n:`a`) WHERE CASE WHEN n.value = 'blubb' THEN true END RETURN n")
     end
 
-    it 'genericCaseWithElse' do
+    it 'generic case with else' do
       statement = Cypher.match(node)
                         .where(Cypher.case_expression
                                      .when(node.property(:value).is_equal_to(Cypher.literal_of('blubb')))
@@ -89,7 +89,7 @@ module CypherDSL
         .to eq("MATCH (n:`a`) WHERE CASE WHEN n.value = 'blubb' THEN true ELSE false END RETURN n")
     end
 
-    it 'genericCaseWithMultipleWhenThen' do
+    it 'generic case with multiple when then' do
       statement = Cypher.match(node)
                         .where(Cypher.case_expression
                                      .when(node.property(:value).is_equal_to(Cypher.literal_of('blubb')))
@@ -105,7 +105,7 @@ module CypherDSL
       )
     end
 
-    it 'genericCaseWithMultipleWhenThenAndElse' do
+    it 'generic case with multiple when then and else' do
       statement = Cypher.match(node)
                         .where(Cypher.case_expression
                                      .when(node.property(:value).is_equal_to(Cypher.literal_of('blubb')))
@@ -123,7 +123,7 @@ module CypherDSL
     end
 
     # from https://neo4j.com/docs/cypher-manual/current/syntax/expressions/#syntax-simple-case
-    it 'canGetAliasedInReturn' do
+    it 'can get aliased in return' do
       node = Cypher.any_node(:n)
       statement = Cypher.match(node)
                         .returning(Cypher.case_expression(node.property(:eyes))

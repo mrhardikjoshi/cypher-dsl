@@ -7,7 +7,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'unrelatedNodes' do
+    it 'unrelated nodes' do
       statement = Cypher.match(bike_node, user_node, Cypher.node('U').named(:o))
                         .returning(bike_node, user_node)
                         .build
@@ -15,7 +15,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (b:`Bike`), (u:`User`), (o:`U`) RETURN b, u')
     end
 
-    it 'asteriskShouldWork' do
+    it 'asterisk should work' do
       statement = Cypher.match(bike_node, user_node, Cypher.node('U').named(:o))
                         .returning(Cypher.asterisk)
                         .build
@@ -23,7 +23,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (b:`Bike`), (u:`User`), (o:`U`) RETURN *')
     end
 
-    it 'aliasedExpressionsInReturn' do
+    it 'aliased expressions in return' do
       unnamed_node = Cypher.node('ANode')
       named_node = Cypher.node('AnotherNode').named(:o)
       statement = Cypher.match(unnamed_node, named_node)
@@ -33,7 +33,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (:`ANode`), (o:`AnotherNode`) RETURN o AS theOtherNode')
     end
 
-    it 'simpleRelationship' do
+    it 'simple relationship' do
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS'))
                         .returning(bike_node, user_node)
                         .build
@@ -41,7 +41,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`)-[:`OWNS`]->(b:`Bike`) RETURN b, u')
     end
 
-    it 'simpleRelationshipChainNamed' do
+    it 'simple relationship chain named' do
       chains = [
         user_node.relationship_to(bike_node, 'OWNS').relationship_to(Cypher.node('Brand'), 'MADE_BY')
                  .named(SymbolicName.of('m')),
@@ -55,7 +55,7 @@ module CypherDSL
       end
     end
 
-    it 'multipleRelationshipTypes' do # GH-169
+    it 'multiple relationship types' do # GH-169
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS', 'RIDES'))
                         .returning(bike_node, user_node)
                         .build
@@ -63,7 +63,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`)-[:`OWNS`|`RIDES`]->(b:`Bike`) RETURN b, u')
     end
 
-    it 'relationshipWithProperties' do # GH-170
+    it 'relationship with properties' do # GH-170
       statement = Cypher
                   .match(user_node.relationship_to(bike_node, 'OWNS')
                                   .with_properties(Cypher.map_of('boughtOn', Cypher.literal_of('2019-04-16'))))
@@ -74,7 +74,7 @@ module CypherDSL
         .to eq("MATCH (u:`User`)-[:`OWNS` {boughtOn: '2019-04-16'}]->(b:`Bike`) RETURN b, u")
     end
 
-    it 'relationshipWithMinimumLength' do # GH-168
+    it 'relationship with minimum length' do # GH-168
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS').min(3))
                         .returning(bike_node, user_node)
                         .build
@@ -82,7 +82,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`)-[:`OWNS`*3..]->(b:`Bike`) RETURN b, u')
     end
 
-    it 'relationshipWithMaximumLength' do # GH-168
+    it 'relationship with maximum length' do # GH-168
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS').max(5))
                         .returning(bike_node, user_node)
                         .build
@@ -90,7 +90,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`)-[:`OWNS`*..5]->(b:`Bike`) RETURN b, u')
     end
 
-    it 'unboundedRelationship' do # GH-168
+    it 'unbounded relationship' do # GH-168
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS').unbounded)
                         .returning(bike_node, user_node)
                         .build
@@ -98,7 +98,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`)-[:`OWNS`*]->(b:`Bike`) RETURN b, u')
     end
 
-    it 'relationshipWithLength' do # GH-168
+    it 'relationship with length' do # GH-168
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS').length(3, 5))
                         .returning(bike_node, user_node)
                         .build
@@ -106,7 +106,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`)-[:`OWNS`*3..5]->(b:`Bike`) RETURN b, u')
     end
 
-    it 'relationshipWithLengthAndProperties' do # GH-168
+    it 'relationship with length and properties' do # GH-168
       statement = Cypher
                   .match(user_node.relationship_to(bike_node, 'OWNS')
                                   .length(3, 5)
@@ -118,7 +118,7 @@ module CypherDSL
         .to eq("MATCH (u:`User`)-[:`OWNS`*3..5 {boughtOn: '2019-04-16'}]->(b:`Bike`) RETURN b, u")
     end
 
-    it 'simpleRelationshipWithReturn' do
+    it 'simple relationship with return' do
       owns = user_node.relationship_to(bike_node, 'OWNS').named(:o)
 
       statement = Cypher.match(owns).returning(bike_node, user_node, owns).build
@@ -126,7 +126,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`)-[o:`OWNS`]->(b:`Bike`) RETURN b, u, o')
     end
 
-    it 'chainedRelations' do
+    it 'chained relations' do
       trip_node = Cypher.node('Trip').named(:t)
       statement = Cypher
                   .match(user_node.relationship_to(bike_node, 'OWNS')
@@ -168,7 +168,7 @@ module CypherDSL
       )
     end
 
-    it 'chainedRelationshipsWithPropertiesAndLength' do # GH-177
+    it 'chained relationships with properties and length' do # GH-177
       trip_node = Cypher.node('Trip').named(:t)
       statement = Cypher
                   .match(user_node.relationship_to(bike_node, 'OWNS')
@@ -193,7 +193,7 @@ module CypherDSL
       )
     end
 
-    it 'sizeOfRelationship' do # GH-182
+    it 'size of relationship' do # GH-182
       statement = Cypher.match(Cypher.any_node(:a))
                         .where(Cypher.property(:a, :name).is_equal_to(Cypher.literal_of('Alice')))
                         .returning(Cypher.size(Cypher.any_node(:a).relationship_to(Cypher.any_node)).as(:fof))
@@ -202,7 +202,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (a) WHERE a.name = 'Alice' RETURN size((a)-->()) AS fof")
     end
 
-    it 'sizeOfRelationshipChain' do # GH-182
+    it 'size of relationship chain' do # GH-182
       statement = Cypher.match(Cypher.any_node(:a))
                         .where(Cypher.property(:a, :name).is_equal_to(Cypher.literal_of('Alice')))
                         .returning(Cypher
@@ -213,7 +213,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (a) WHERE a.name = 'Alice' RETURN size((a)-->()-->()) AS fof")
     end
 
-    it 'sortOrderDefault' do
+    it 'sort order default' do
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .order_by(Cypher.sort(user_node.property(:name)))
@@ -222,7 +222,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u ORDER BY u.name')
     end
 
-    it 'sortOrderDefaultBasedOnSortItemCollection' do # GH-189
+    it 'sort order default based on sort item collection' do # GH-189
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .order_by([Cypher.sort(user_node.property(:name))])
@@ -231,7 +231,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u ORDER BY u.name')
     end
 
-    it 'sortOrderAscending' do
+    it 'sort order ascending' do
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .order_by(Cypher.sort(user_node.property(:name)).ascending)
@@ -240,7 +240,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u ORDER BY u.name ASC')
     end
 
-    it 'sortOrderDescending' do
+    it 'sort order descending' do
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .order_by(Cypher.sort(user_node.property(:name)).descending)
@@ -249,7 +249,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u ORDER BY u.name DESC')
     end
 
-    it 'sortOrderConcatenation' do
+    it 'sort order concatenation' do
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .order_by(Cypher.sort(user_node.property(:name)).descending,
@@ -259,7 +259,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u ORDER BY u.name DESC, u.age ASC')
     end
 
-    it 'sortOrderDefaultExpression' do
+    it 'sort order default expression' do
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .order_by(user_node.property(:name))
@@ -268,7 +268,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u ORDER BY u.name')
     end
 
-    it 'sortOrderAscendingExpression' do
+    it 'sort order ascending expression' do
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .order_by(user_node.property(:name).ascending)
@@ -277,7 +277,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u ORDER BY u.name ASC')
     end
 
-    it 'sortOrderDescendingExpression' do
+    it 'sort order descending expression' do
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .order_by(user_node.property(:name).descending)
@@ -286,7 +286,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u ORDER BY u.name DESC')
     end
 
-    it 'sortOrderConcatenationExpression' do
+    it 'sort order concatenation expression' do
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .order_by(user_node.property(:name))
@@ -304,7 +304,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u SKIP 1')
     end
 
-    it 'nullSkip' do
+    it 'null skip' do
       statement = Cypher.match(user_node).returning(user_node).skip(nil).build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u')
@@ -316,7 +316,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u LIMIT 1')
     end
 
-    it 'limitWithParams' do # GH-129
+    it 'limit with params' do # GH-129
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .limit(Cypher.parameter(:param))
@@ -325,19 +325,19 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u LIMIT $param')
     end
 
-    it 'nullLimit' do
+    it 'null limit' do
       statement = Cypher.match(user_node).returning(user_node).limit(nil).build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u')
     end
 
-    it 'skipAndLimit' do
+    it 'skip and limit' do
       statement = Cypher.match(user_node).returning(user_node).skip(1).limit(1).build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u SKIP 1 LIMIT 1')
     end
 
-    it 'skipAndLimitWithParams' do # GH-129
+    it 'skip and limit with params' do # GH-129
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .skip(Cypher.parameter(:skip))
@@ -347,7 +347,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u SKIP $skip LIMIT $limit')
     end
 
-    it 'nullSkipAndLimit' do
+    it 'null skip and limit' do
       statement = Cypher.match(user_node)
                         .returning(user_node)
                         .skip(nil)

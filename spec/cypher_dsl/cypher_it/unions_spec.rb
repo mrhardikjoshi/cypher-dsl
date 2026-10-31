@@ -13,7 +13,7 @@ module CypherDSL
             .build
     end
 
-    it 'shouldRenderUnions' do
+    it 'renders unions' do
       statement = Cypher.union(bikes_where(:a, 'A'), bikes_where(:b, 'B'), bikes_where(:c, 'C'))
 
       expect(renderer.render(statement)).to eq(
@@ -21,7 +21,7 @@ module CypherDSL
       )
     end
 
-    it 'shouldRenderUnionsBasedOnStatementCollections' do # GH-189
+    it 'renders unions based on statement collections' do # GH-189
       statements = [bikes_where(:a, 'A'), bikes_where(:b, 'B'), bikes_where(:c, 'C')]
       statement = Cypher.union(statements)
 
@@ -30,21 +30,21 @@ module CypherDSL
       )
     end
 
-    it 'shouldRenderAllUnions' do
+    it 'renders all unions' do
       statement = Cypher.union_all(bikes_where(:a, 'A'), bikes_where(:b, 'B'))
 
       expect(renderer.render(statement))
         .to eq("MATCH (b:`Bike`) WHERE b.a = 'A' RETURN b UNION ALL MATCH (b:`Bike`) WHERE b.b = 'B' RETURN b")
     end
 
-    it 'shouldRenderAllUnionsBasedOnStatementCollections' do # GH-189
+    it 'renders all unions based on statement collections' do # GH-189
       statement = Cypher.union_all([bikes_where(:a, 'A'), bikes_where(:b, 'B')])
 
       expect(renderer.render(statement))
         .to eq("MATCH (b:`Bike`) WHERE b.a = 'A' RETURN b UNION ALL MATCH (b:`Bike`) WHERE b.b = 'B' RETURN b")
     end
 
-    it 'shouldAppendToExistingUnions' do
+    it 'appends to existing unions' do
       statement = Cypher.union_all(bikes_where(:a, 'A'), bikes_where(:b, 'B'))
       statement = Cypher.union_all(statement, bikes_where(:c, 'C'), bikes_where(:d, 'D'))
 
@@ -53,7 +53,7 @@ module CypherDSL
       )
     end
 
-    it 'shouldNotMix' do
+    it 'does not mix' do
       statement = Cypher.union_all(bikes_where(:a, 'A'), bikes_where(:b, 'B'))
 
       expect { Cypher.union(statement, bikes_where(:c, 'C')) }

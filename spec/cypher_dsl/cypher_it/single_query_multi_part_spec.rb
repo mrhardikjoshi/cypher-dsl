@@ -7,7 +7,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'simpleWith' do
+    it 'simple with' do
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS'))
                         .where(user_node.property(:a).is_null)
                         .with(bike_node, user_node)
@@ -18,7 +18,7 @@ module CypherDSL
         .to eq('MATCH (u:`User`)-[:`OWNS`]->(b:`Bike`) WHERE u.a IS NULL WITH b, u RETURN b')
     end
 
-    it 'shouldRenderLeadingWith' do
+    it 'renders leading with' do
       statement = Cypher.with(Cypher.parameter(:listOfPropertyMaps).as(:p))
                         .unwind(:p)
                         .as(:item)
@@ -28,7 +28,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('WITH $listOfPropertyMaps AS p UNWIND p AS item RETURN item')
     end
 
-    it 'shouldRenderLeadingWithBasedOnExpression' do # GH-189
+    it 'renders leading with based on expression' do # GH-189
       statement = Cypher.with([Cypher.parameter(:listOfPropertyMaps).as(:p)])
                         .unwind(:p)
                         .as(:item)
@@ -38,7 +38,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('WITH $listOfPropertyMaps AS p UNWIND p AS item RETURN item')
     end
 
-    it 'withWithSkip' do # GH-129
+    it 'with with skip' do # GH-129
       m = Cypher.node('Movie').named(:m)
       statement = Cypher.match(m).with(m).skip(1).returning(Cypher.count(m)).build
 
@@ -49,7 +49,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (m:`Movie`) WITH m SKIP $skip RETURN count(m)')
     end
 
-    it 'withWithLimit' do # GH-129
+    it 'with with limit' do # GH-129
       m = Cypher.node('Movie').named(:m)
       statement = Cypher.match(m).with(m).limit(23).returning(Cypher.count(m)).build
 
@@ -60,7 +60,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (m:`Movie`) WITH m LIMIT $limit RETURN count(m)')
     end
 
-    it 'withWithSkipAndLimit' do # GH-129
+    it 'with with skip and limit' do # GH-129
       m = Cypher.node('Movie').named(:m)
       statement = Cypher.match(m).with(m).skip(1).limit(23).returning(Cypher.count(m)).build
 
@@ -76,7 +76,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (m:`Movie`) WITH m SKIP $skip LIMIT $limit RETURN count(m)')
     end
 
-    it 'withWithAndNullsForSkipAndLimit' do # GH-129
+    it 'with with and nulls for skip and limit' do # GH-129
       m = Cypher.node('Movie').named(:m)
       statement = Cypher.match(m)
                         .with(m)
@@ -89,7 +89,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq(expected)
     end
 
-    it 'simpleWithChained' do
+    it 'simple with chained' do
       trip_node = Cypher.node('Trip').named(:t)
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS'))
                         .where(user_node.property(:a).is_null)
@@ -105,7 +105,7 @@ module CypherDSL
       )
     end
 
-    it 'deletingSimpleWith' do
+    it 'deleting simple with' do
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS'))
                         .where(user_node.property(:a).is_null)
                         .delete(user_node)
@@ -117,7 +117,7 @@ module CypherDSL
         .to eq('MATCH (u:`User`)-[:`OWNS`]->(b:`Bike`) WHERE u.a IS NULL DELETE u WITH b, u RETURN b, u')
     end
 
-    it 'deletingSimpleWithReverse' do
+    it 'deleting simple with reverse' do
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS'))
                         .where(user_node.property(:a).is_null)
                         .with(bike_node, user_node)
@@ -129,7 +129,7 @@ module CypherDSL
         .to eq('MATCH (u:`User`)-[:`OWNS`]->(b:`Bike`) WHERE u.a IS NULL WITH b, u DELETE u RETURN b, u')
     end
 
-    it 'mixedClausesWithWith' do
+    it 'mixed clauses with with' do
       trip_node = Cypher.node('Trip').named(:t)
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS'))
                         .match(trip_node)

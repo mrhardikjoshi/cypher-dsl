@@ -7,7 +7,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'shouldRenderMergeWithoutReturn' do
+    it 'renders merge without return' do
       statement = Cypher.merge(user_node).build
 
       expect(renderer.render(statement)).to eq('MERGE (u:`User`)')
@@ -17,7 +17,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MERGE (u:`User`)-[o:`OWNS`]->(b:`Bike`)')
     end
 
-    it 'shouldRenderMergeBasedOnPatternExpressionCollectionWithoutReturn' do # GH-189
+    it 'renders merge based on pattern expression collection without return' do # GH-189
       statement = Cypher.merge([user_node]).build
 
       expect(renderer.render(statement)).to eq('MERGE (u:`User`)')
@@ -27,7 +27,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MERGE (u:`User`)-[o:`OWNS`]->(b:`Bike`)')
     end
 
-    it 'shouldRenderMultipleMergesWithoutReturn' do
+    it 'renders multiple merges without return' do
       statement = Cypher.merge(user_node).merge(bike_node).build
 
       expect(renderer.render(statement)).to eq('MERGE (u:`User`) MERGE (b:`Bike`)')
@@ -39,7 +39,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MERGE (u:`User`)-[o:`OWNS`]->(b:`Bike`) MERGE (:`Other`)')
     end
 
-    it 'shouldRenderMergeReturn' do
+    it 'renders merge return' do
       statement = Cypher.merge(user_node).returning(user_node).build
 
       expect(renderer.render(statement)).to eq('MERGE (u:`User`) RETURN u')
@@ -59,7 +59,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MERGE (u:`User`) RETURN u ORDER BY u.name SKIP 23 LIMIT 42')
     end
 
-    it 'shouldRenderMultipleMergesReturn' do
+    it 'renders multiple merges return' do
       statement = Cypher.merge(user_node).merge(bike_node).returning(user_node).build
 
       expect(renderer.render(statement)).to eq('MERGE (u:`User`) MERGE (b:`Bike`) RETURN u')
@@ -73,7 +73,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MERGE (u:`User`)-[o:`OWNS`]->(b:`Bike`) MERGE (:`Other`) RETURN u, o')
     end
 
-    it 'shouldRenderMergeWithWith' do
+    it 'renders merge with with' do
       statement = Cypher.merge(user_node).with(user_node).returning(user_node).build
 
       expect(renderer.render(statement)).to eq('MERGE (u:`User`) WITH u RETURN u')
@@ -86,13 +86,13 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MERGE (u:`User`) WITH u SET u.x = 'y'")
     end
 
-    it 'matchShouldExposeMerge' do
+    it 'match should expose merge' do
       statement = Cypher.match(user_node).merge(user_node.relationship_to(bike_node, 'OWNS').named(:o)).build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) MERGE (u)-[o:`OWNS`]->(b:`Bike`)')
     end
 
-    it 'withShouldExposeMerge' do
+    it 'with should expose merge' do
       statement = Cypher.match(user_node)
                         .with_distinct(user_node)
                         .merge(user_node.relationship_to(bike_node, 'OWNS').named(:o))
@@ -101,7 +101,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) WITH DISTINCT u MERGE (u)-[o:`OWNS`]->(b:`Bike`)')
     end
 
-    it 'mixedCreateAndMerge' do
+    it 'mixed create and merge' do
       trip_node = Cypher.node('Trip').named(:t)
 
       statement = Cypher.create(user_node)
@@ -116,7 +116,7 @@ module CypherDSL
       )
     end
 
-    it 'singleCreateAction' do # GH-104
+    it 'single create action' do # GH-104
       hallo_welt_string = Cypher.literal_of('Hallo, Welt')
       [
         Cypher.merge(user_node).on_create.set(user_node.property(:p).to(hallo_welt_string)).build,
@@ -126,7 +126,7 @@ module CypherDSL
       end
     end
 
-    it 'singleMatchAction' do # GH-104
+    it 'single match action' do # GH-104
       hallo_welt_string = Cypher.literal_of('Hallo, Welt')
       [
         Cypher.merge(user_node).on_match.set(user_node.property(:p).to(hallo_welt_string)).build,
@@ -136,7 +136,7 @@ module CypherDSL
       end
     end
 
-    it 'stuffThanSingleMatchAction' do
+    it 'stuff than single match action' do
       statement = Cypher.create(bike_node)
                         .set(bike_node.property(:nice).to(Cypher.literal_true))
                         .merge(user_node)
@@ -149,7 +149,7 @@ module CypherDSL
       )
     end
 
-    it 'singleActionMultipleProperties' do
+    it 'single action multiple properties' do
       [
         Cypher.merge(user_node)
               .on_match
@@ -166,7 +166,7 @@ module CypherDSL
       end
     end
 
-    it 'multipleActionMultipleProperties' do
+    it 'multiple action multiple properties' do
       statement = Cypher.merge(user_node)
                         .on_match
                         .set(user_node.property(:p1).to(Cypher.literal_of('v1')),
@@ -180,7 +180,7 @@ module CypherDSL
       )
     end
 
-    it 'singleCreateThanMatchAction' do # GH-104
+    it 'single create than match action' do # GH-104
       statement = Cypher.merge(user_node)
                         .on_create
                         .set(user_node.property(:p).to(Cypher.literal_of('Hello, World')))
@@ -191,7 +191,7 @@ module CypherDSL
         .to eq("MERGE (u:`User`) ON CREATE SET u.p = 'Hello, World' ON MATCH SET u.p = 'Hallo, Welt'")
     end
 
-    it 'singleMatchThanCreateAction' do # GH-104
+    it 'single match than create action' do # GH-104
       statement = Cypher.merge(user_node)
                         .on_match
                         .set(user_node.property(:p).to(Cypher.literal_of('Hallo, Welt')))
@@ -202,7 +202,7 @@ module CypherDSL
         .to eq("MERGE (u:`User`) ON MATCH SET u.p = 'Hallo, Welt' ON CREATE SET u.p = 'Hello, World'")
     end
 
-    it 'multipleMatchesAndCreates' do # GH-104
+    it 'multiple matches and creates' do # GH-104
       statement = Cypher.merge(user_node)
                         .on_match
                         .set(user_node.property(:p1).to(Cypher.literal_of('v1')))
@@ -218,7 +218,7 @@ module CypherDSL
       )
     end
 
-    it 'actionThanSet' do # GH-104
+    it 'action than set' do # GH-104
       statement = Cypher.merge(user_node)
                         .on_match
                         .set(user_node.property(:p1).to(Cypher.literal_of('v1')))
@@ -228,7 +228,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MERGE (u:`User`) ON MATCH SET u.p1 = 'v1' SET u.p2 = 'v2' RETURN u")
     end
 
-    it 'actionThanContinue' do # GH-104
+    it 'action than continue' do # GH-104
       statement = Cypher.merge(user_node)
                         .on_match
                         .set(user_node.property(:p1).to(Cypher.literal_of('v1')))
@@ -238,43 +238,43 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MERGE (u:`User`) ON MATCH SET u.p1 = 'v1' WITH u RETURN u")
     end
 
-    it 'mergeShouldExposeRemoveLabels' do # GH-750
+    it 'merge should expose remove labels' do # GH-750
       n = Cypher.node('LABEL1').named(:n)
       statement = Cypher.merge(n).remove(n, 'OLD_LABEL').set(n, 'NEW_LABEL').build
       expect(renderer.render(statement)).to eq('MERGE (n:`LABEL1`) REMOVE n:`OLD_LABEL` SET n:`NEW_LABEL`')
     end
 
-    it 'mergeShouldExposeRemoveProperties' do # GH-750
+    it 'merge should expose remove properties' do # GH-750
       n = Cypher.node('LABEL1').named(:n)
       statement = Cypher.merge(n).remove(n.property(:x)).build
       expect(renderer.render(statement)).to eq('MERGE (n:`LABEL1`) REMOVE n.x')
     end
 
-    it 'mergeShouldExposeSetLabels' do # GH-750
+    it 'merge should expose set labels' do # GH-750
       n = Cypher.node('LABEL1').named(:n)
       statement = Cypher.merge(n).set(n, 'NEW_LABEL').build
       expect(renderer.render(statement)).to eq('MERGE (n:`LABEL1`) SET n:`NEW_LABEL`')
     end
 
-    it 'mergeShouldExposeSetProperties' do # GH-750
+    it 'merge should expose set properties' do # GH-750
       n = Cypher.node('LABEL1').named(:n)
       statement = Cypher.merge(n).set(n.property(:x), Cypher.literal_of('y')).build
       expect(renderer.render(statement)).to eq("MERGE (n:`LABEL1`) SET n.x = 'y'")
     end
 
-    it 'mergeShouldExposeSetLabelsAfterAction' do # GH-750
+    it 'merge should expose set labels after action' do # GH-750
       n = Cypher.node('LABEL1').named(:n)
       statement = Cypher.merge(n).on_match.set(n, 'NEW_LABEL').build
       expect(renderer.render(statement)).to eq('MERGE (n:`LABEL1`) ON MATCH SET n:`NEW_LABEL`')
     end
 
-    it 'mergeShouldExposeSetMultipleLabelsAfterAction' do # GH-750
+    it 'merge should expose set multiple labels after action' do # GH-750
       n = Cypher.node('LABEL1').named(:n)
       statement = Cypher.merge(n).on_match.set(n, %w[A B]).build
       expect(renderer.render(statement)).to eq('MERGE (n:`LABEL1`) ON MATCH SET n:`A`:`B`')
     end
 
-    it 'mergeShouldExposeSetPropertiesAfterAction' do # GH-750
+    it 'merge should expose set properties after action' do # GH-750
       n = Cypher.node('LABEL1').named(:n)
       statement = Cypher.merge(n).on_match.set(n.property(:x), Cypher.literal_of('y')).build
       expect(renderer.render(statement)).to eq("MERGE (n:`LABEL1`) ON MATCH SET n.x = 'y'")

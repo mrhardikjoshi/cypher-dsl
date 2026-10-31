@@ -7,7 +7,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'simpleWithParam' do
+    it 'simple with param' do
       statement = Cypher.match(user_node)
                         .mutate(user_node, Cypher.parameter(:newMapsOfHell))
                         .returning(user_node)
@@ -16,7 +16,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) SET u += $newMapsOfHell RETURN u')
     end
 
-    it 'afterMerge' do
+    it 'after merge' do
       statement = Cypher.merge(user_node)
                         .on_match
                         .mutate(user_node, Cypher.parameter(:newMapsOfHell))
@@ -29,7 +29,7 @@ module CypherDSL
         .to eq("MERGE (u:`User`) ON MATCH SET u += $newMapsOfHell ON CREATE SET u += {a: 'B'} RETURN u")
     end
 
-    it 'simpleWithMap' do
+    it 'simple with map' do
       statement = Cypher.match(user_node)
                         .mutate(user_node, Cypher.map_of('a', Cypher.literal_of('B')))
                         .returning(user_node)
@@ -38,7 +38,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (u:`User`) SET u += {a: 'B'} RETURN u")
     end
 
-    it 'chainedWithParam' do
+    it 'chained with param' do
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS').named(:r))
                         .mutate(user_node, Cypher.map_of('a', Cypher.literal_of('B')))
                         .mutate(bike_node, Cypher.parameter(:newMapsOfHell))
@@ -50,7 +50,7 @@ module CypherDSL
       )
     end
 
-    it 'chainedWithMap' do
+    it 'chained with map' do
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS').named(:r))
                         .mutate(user_node, Cypher.map_of('a', Cypher.literal_of('B')))
                         .mutate(bike_node, Cypher.map_of('c', Cypher.literal_of('D')))
@@ -61,7 +61,7 @@ module CypherDSL
         .to eq("MATCH (u:`User`)-[r:`OWNS`]->(b:`Bike`) SET u += {a: 'B'} SET b += {c: 'D'} RETURN u")
     end
 
-    it 'multipleLevelsOfChaining' do
+    it 'multiple levels of chaining' do
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS').named(:r))
                         .mutate(user_node, Cypher.map_of('a', Cypher.literal_of('B')))
                         .mutate(bike_node, Cypher.map_of('c', Cypher.literal_of('D')))
@@ -74,7 +74,7 @@ module CypherDSL
       )
     end
 
-    it 'foldingMultipleMutatesIntoOne' do
+    it 'folding multiple mutates into one' do
       owns_relationship = user_node.relationship_to(bike_node, 'OWNS').named(:r)
       statement = Cypher.match(owns_relationship)
                         .set(user_node.mutate(Cypher.map_of('a', Cypher.literal_of('B'))),
@@ -88,7 +88,7 @@ module CypherDSL
       )
     end
 
-    it 'afterMergeFolding' do
+    it 'after merge folding' do
       owns_relationship = user_node.relationship_to(bike_node, 'OWNS').named(:r)
       statement = Cypher.merge(owns_relationship)
                         .on_match
@@ -105,7 +105,7 @@ module CypherDSL
       )
     end
 
-    it 'mergeMutate' do
+    it 'merge mutate' do
       statement = Cypher.merge(user_node)
                         .mutate(user_node, Cypher.map_of('e', Cypher.literal_of('F')))
                         .returning(user_node)
@@ -114,7 +114,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MERGE (u:`User`) SET u += {e: 'F'} RETURN u")
     end
 
-    it 'createMutate' do
+    it 'create mutate' do
       statement = Cypher.create(user_node)
                         .mutate(user_node, Cypher.map_of('e', Cypher.literal_of('F')))
                         .returning(user_node)
@@ -123,7 +123,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("CREATE (u:`User`) SET u += {e: 'F'} RETURN u")
     end
 
-    it 'mergeMutateWithMapProjection' do
+    it 'merge mutate with map projection' do
       map = Cypher.name(:map)
 
       statement = Cypher
@@ -135,7 +135,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("WITH {p: 'Hello, Welt', i: 1} AS map MERGE (u:`User`) SET u += map{.*}")
     end
 
-    it 'mergeMutateWithSymbolicName' do
+    it 'merge mutate with symbolic name' do
       map = Cypher.name(:map)
 
       statement = Cypher
@@ -147,7 +147,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("WITH {p: 'Hello, Welt', i: 1} AS map MERGE (u:`User`) SET u += map")
     end
 
-    it 'mergeMutateWithFunctionCall' do
+    it 'merge mutate with function call' do
       statement = Cypher.merge(user_node).mutate(user_node, Cypher.call('returns.map').as_function).build
 
       expect(renderer.render(statement)).to eq('MERGE (u:`User`) SET u += returns.map()')

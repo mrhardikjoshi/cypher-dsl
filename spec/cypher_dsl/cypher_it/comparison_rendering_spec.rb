@@ -6,7 +6,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'equalsWithStringLiteral' do
+    it 'equals with string literal' do
       statement = Cypher.match(user_node)
                         .where(user_node.property(:name).is_equal_to(Cypher.literal_of('Test')))
                         .returning(user_node)
@@ -15,7 +15,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (u:`User`) WHERE u.name = 'Test' RETURN u")
     end
 
-    it 'equalsWithNumberLiteral' do
+    it 'equals with number literal' do
       statement = Cypher.match(user_node)
                         .where(user_node.property(:age).is_equal_to(Cypher.literal_of(21)))
                         .returning(user_node)

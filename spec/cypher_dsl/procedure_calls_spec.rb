@@ -18,18 +18,18 @@ module CypherDSL
       expect(renderer.render(call)).to eq(expected)
     end
 
-    it 'simpleBasedOnStringCollection' do
+    it 'simple based on string collection' do
       call = Cypher.call(%w[db labels]).build
       expect(renderer.render(call)).to eq('CALL db.labels()')
     end
 
-    it 'procedureNamesMustBeEscaped' do
+    it 'procedure names must be escaped' do
       expected = 'CALL `this is a`.`very odd`.`procedure!`()'
       expect(Cypher.call('this is a', 'very odd', 'procedure!').build.cypher).to eq(expected)
       expect(Cypher.call('this is a.very odd.procedure!').build.cypher).to eq(expected)
     end
 
-    it 'shouldGenerateStatementsOfCorrectType' do
+    it 'generates statements of correct type' do
       call = Cypher.call('db', 'labels').build
       expect(call).to be_procedure_call
       expect(call).not_to be_result_statement
@@ -41,14 +41,14 @@ module CypherDSL
       expect(call).to be_single_query.and be_result_statement
     end
 
-    it 'withArgs' do
+    it 'with args' do
       call = Cypher.call('dbms.security.createUser')
                    .with_args(Cypher.literal_of('johnsmith'), Cypher.literal_of('h6u4%kr'), Cypher.literal_false)
                    .build
       expect(renderer.render(call)).to eq("CALL dbms.security.createUser('johnsmith', 'h6u4%kr', false)")
     end
 
-    it 'yieldItems' do
+    it 'yield items' do
       expected = 'CALL dbms.procedures() YIELD name, signature'
 
       call = Cypher.call('dbms.procedures').yield('name', 'signature').build
@@ -58,12 +58,12 @@ module CypherDSL
       expect(renderer.render(call)).to eq(expected)
     end
 
-    it 'yieldItemsRenamed' do
+    it 'yield items renamed' do
       call = Cypher.call('db.propertyKeys').yield(Cypher.name(:propertyKey).as(:prop)).build
       expect(renderer.render(call)).to eq('CALL db.propertyKeys() YIELD propertyKey AS prop')
     end
 
-    it 'withArgsAndYield' do
+    it 'with args and yield' do
       call = Cypher.call('dbms.listConfig').with_args(Cypher.literal_of('browser')).yield('name').build
       expect(renderer.render(call)).to eq("CALL dbms.listConfig('browser') YIELD name")
     end
@@ -86,7 +86,7 @@ module CypherDSL
       expect(renderer.render(call)).to eq('CALL db.labels() YIELD label RETURN count(label) AS numLabels')
     end
 
-    it 'withThanReturning' do
+    it 'with than returning' do
       label = Cypher.name(:label)
       call = Cypher.call('db.labels')
                    .yield(label)
@@ -96,7 +96,7 @@ module CypherDSL
       expect(renderer.render(call)).to eq('CALL db.labels() YIELD label WITH label RETURN count(label) AS numLabels')
     end
 
-    it 'withThanReturningInQuery' do
+    it 'with than returning in query' do
       label = Cypher.name(:label)
       call = Cypher.match(Cypher.any_node.named(:n))
                    .with('n')
@@ -109,7 +109,7 @@ module CypherDSL
         .to eq('MATCH (n) WITH n CALL db.labels() YIELD label WITH label RETURN count(label) AS numLabels')
     end
 
-    it 'shouldBeUsableAsExpression' do # GH-101
+    it 'is usable as expression' do # GH-101
       p = Cypher.node('Person').named(:p)
       stmt = Cypher
              .merge(p.with_properties(Cypher.map_of('id', Cypher.call('apoc.create.uuid').as_function)))
@@ -121,17 +121,17 @@ module CypherDSL
       )
     end
 
-    it 'dynamicDistinct' do
+    it 'dynamic distinct' do
       statement = Cypher.returning(Cypher.call('aVg').with_args(Cypher.literal_of(1)).as_function(true)).build
       expect(renderer.render(statement)).to eq('RETURN aVg(DISTINCT 1)')
     end
 
-    it 'dynamicDistinctUnsupported' do
+    it 'dynamic distinct unsupported' do
       expect { Cypher.call('foobar').with_args(Cypher.literal_of(1)).as_function(true) }
         .to raise_error(ArgumentError, 'The distinct operator can only be applied within aggregate functions.')
     end
 
-    it 'shouldBeUsableWithParametersAsExpression' do # GH-101
+    it 'is usable with parameters as expression' do # GH-101
       p = Cypher.node('Person').named(:p)
       stmt = Cypher
              .merge(p.with_properties(Cypher.map_of('id', Cypher.call('apoc.create.uuid').as_function)))
@@ -181,7 +181,7 @@ module CypherDSL
         )
       end
 
-      it 'relatedInner' do
+      it 'related inner' do
         name = Cypher.name(:name)
         parameters = Cypher.list_of(Cypher.literal_of('browser'), Cypher.literal_of('causal_clustering')).as(:parameters)
         call = Cypher.with(parameters)

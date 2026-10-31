@@ -13,19 +13,19 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('RETURN [a IN [1, 2, 3, 4]]')
     end
 
-    it 'withReturning' do
+    it 'with returning' do
       name = Cypher.name(:a)
       statement = Cypher.returning(Cypher.list_with(name).in(one_to_four).returning(name.remainder(Cypher.literal_of(2)))).build
       expect(renderer.render(statement)).to eq('RETURN [a IN [1, 2, 3, 4] | (a % 2)]')
     end
 
-    it 'withWhere' do
+    it 'with where' do
       name = Cypher.name(:a)
       statement = Cypher.returning(Cypher.list_with(name).in(one_to_four).where(name.gt(Cypher.literal_of(2))).returning).build
       expect(renderer.render(statement)).to eq('RETURN [a IN [1, 2, 3, 4] WHERE a > 2]')
     end
 
-    it 'withWhereAndReturning' do
+    it 'with where and returning' do
       name = Cypher.name(:a)
       statement = Cypher
                   .returning(Cypher.list_with(name)
@@ -36,14 +36,14 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('RETURN [a IN [1, 2, 3, 4] WHERE a > 2 | (a % 2)]')
     end
 
-    it 'simpleWithCollection' do # GH-189
+    it 'simple with collection' do # GH-189
       name = Cypher.name(:a)
       expressions = [Cypher.literal_of(1), Cypher.literal_of(2), Cypher.literal_of(3), Cypher.literal_of(4)]
       statement = Cypher.returning(Cypher.list_with(name).in(Cypher.list_of(expressions)).returning).build
       expect(renderer.render(statement)).to eq('RETURN [a IN [1, 2, 3, 4]]')
     end
 
-    it 'docsExample' do
+    it 'docs example' do
       name = Cypher.name(:x)
 
       statement = Cypher
@@ -88,7 +88,7 @@ module CypherDSL
         .to eq("MATCH (a:`Person` {name: 'Keanu Reeves'}) RETURN [(a)--(b) | b.released] AS years")
     end
 
-    it 'simpleWithWhere' do
+    it 'simple with where' do
       a = Cypher.node('Person').with_properties('name', Cypher.literal_of('Keanu Reeves')).named(:a)
       b = Cypher.any_node(:b)
 
@@ -134,14 +134,14 @@ module CypherDSL
   RSpec.describe 'CypherIT / MultipleLabels' do
     let(:renderer) { Renderer.default }
 
-    it 'matchWithMultipleLabels' do
+    it 'match with multiple labels' do
       node = Cypher.node('a', 'b', 'c').named(:n)
       statement = Cypher.match(node).returning(node).build
 
       expect(renderer.render(statement)).to eq('MATCH (n:`a`:`b`:`c`) RETURN n')
     end
 
-    it 'createWithMultipleLabels' do
+    it 'create with multiple labels' do
       node = Cypher.node('a', 'b', 'c').named(:n)
       statement = Cypher.create(node).build
 

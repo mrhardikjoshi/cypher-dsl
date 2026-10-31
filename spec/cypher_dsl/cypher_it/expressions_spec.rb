@@ -10,7 +10,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'shouldRenderParameters' do
+    it 'renders parameters' do
       statement = Cypher.match(user_node)
                         .where(user_node.property(:a).is_equal_to(Cypher.parameter(:aParameter)))
                         .detach_delete(user_node)
@@ -28,12 +28,12 @@ module CypherDSL
       'Unary minus' => [-> { Cypher.minus(Cypher.literal_of(1)) }, 'RETURN -1'],
       'Unary plus' => [-> { Cypher.plus(Cypher.literal_of(1)) }, 'RETURN +1']
     }.each do |name, (operator, expected)|
-      it "unaryOperatorsShouldWork: #{name}" do
+      it "unary operators should work: #{name}" do
         expect(renderer.render(Cypher.returning(operator.call).build)).to eq(expected)
       end
     end
 
-    it 'shouldRenderOperations' do
+    it 'renders operations' do
       statement = Cypher.match(Cypher.any_node(:n))
                         .returning(Cypher.literal_of(1).add(Cypher.literal_of(2)))
                         .build
@@ -41,7 +41,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (n) RETURN (1 + 2)')
     end
 
-    it 'shouldRenderComparision' do
+    it 'renders comparision' do
       statement = Cypher.match(Cypher.any_node(:n))
                         .returning(Cypher.literal_of(1).gt(Cypher.literal_of(2)))
                         .build
@@ -65,7 +65,7 @@ module CypherDSL
   RSpec.describe 'CypherIT / ExpressionsRendering' do
     let(:renderer) { Renderer.default }
 
-    it 'shouldRenderMap' do
+    it 'renders map' do
       map = Cypher.map_of('latitude', Cypher.parameter(:latitude), 'longitude', Cypher.parameter(:longitude),
                           'crs', Cypher.literal_of('WGS-84'))
       statement = Cypher.match(Cypher.any_node(:n)).returning(Cypher.point(map)).build
@@ -74,7 +74,7 @@ module CypherDSL
         .to eq("MATCH (n) RETURN point({latitude: $latitude, longitude: $longitude, crs: 'WGS-84'})")
     end
 
-    it 'shouldRenderPointFunction' do
+    it 'renders point function' do
       n = Cypher.any_node(:n)
       statement = Cypher.match(n)
                         .where(Cypher.distance(n.property(:location), Cypher.point(Cypher.parameter('point.point')))

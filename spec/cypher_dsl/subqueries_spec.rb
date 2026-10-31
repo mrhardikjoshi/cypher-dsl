@@ -12,7 +12,7 @@ module CypherDSL
       Renderer.get_renderer(Renderer::Configuration.new_config.always_escape_names(escape).with_dialect(dialect).build)
     end
 
-    it 'unitSubqueries' do # GH-533
+    it 'unit subqueries' do # GH-533
       p = Cypher.node('Person').named(:p)
       outer = Cypher.match(p)
       inner = Cypher.with(p)
@@ -28,7 +28,7 @@ module CypherDSL
     end
 
     describe 'Scope' do
-      it 'nodePatternInCallMustBeFullAndNotKnown' do
+      it 'node pattern in call must be full and not known' do
         parsed = Cypher.match(Cypher.node('Person').named(:n))
                        .call(Cypher
                                .match(Cypher.node('Movie').named(:n).with_properties('title', Cypher.literal_of('The Matrix')))
@@ -49,7 +49,7 @@ module CypherDSL
         Renderer::Dialect::NEO4J_5 => "UNWIND [0, 1, 2] AS x CALL {RETURN 'hello' AS innerReturn} RETURN innerReturn",
         Renderer::Dialect::NEO4J_5_23 => "UNWIND [0, 1, 2] AS x CALL (*) {RETURN 'hello' AS innerReturn} RETURN innerReturn"
       }.each do |dialect, expected|
-        it "starterExample(#{dialect})" do
+        it "starter example(#{dialect})" do
           stmt = Cypher.unwind(Cypher.list_of(Cypher.literal_of(0), Cypher.literal_of(1), Cypher.literal_of(2)))
                        .as(:x)
                        .call(Cypher.returning(Cypher.literal_of('hello').as(:innerReturn)).build)
@@ -64,7 +64,7 @@ module CypherDSL
         Renderer::Dialect::NEO4J_5 => 'MATCH (p:Player), (t:Team) CALL {WITH p WITH p, rand() AS random SET p.rating = random RETURN p.name AS playerName, p.rating AS rating} RETURN playerName, rating, t AS team ORDER BY rating LIMIT 1',
         Renderer::Dialect::NEO4J_5_23 => 'MATCH (p:Player), (t:Team) CALL (p) {WITH p, rand() AS random SET p.rating = random RETURN p.name AS playerName, p.rating AS rating} RETURN playerName, rating, t AS team ORDER BY rating LIMIT 1'
       }.each do |dialect, expected|
-        it "someImports(#{dialect})" do
+        it "some imports(#{dialect})" do
           p = Cypher.node('Player').named(:p)
           t = Cypher.node('Team').named(:t)
 
@@ -88,7 +88,7 @@ module CypherDSL
         Renderer::Dialect::NEO4J_5 => 'MATCH (p:Player), (t:Team) CALL {WITH * RETURN p AS player, t AS team} RETURN player, team',
         Renderer::Dialect::NEO4J_5_23 => 'MATCH (p:Player), (t:Team) CALL (*) {RETURN p AS player, t AS team} RETURN player, team'
       }.each do |dialect, expected|
-        it "allImports(#{dialect})" do
+        it "all imports(#{dialect})" do
           p = Cypher.node('Player').named(:p)
           t = Cypher.node('Team').named(:t)
 
@@ -106,7 +106,7 @@ module CypherDSL
         Renderer::Dialect::NEO4J_5 => 'MATCH (t:Team) CALL {MATCH (p:Player) RETURN count(p) AS totalPlayers} RETURN count(t) AS totalTeams, totalPlayers',
         Renderer::Dialect::NEO4J_5_23 => 'MATCH (t:Team) CALL (*) {MATCH (p:Player) RETURN count(p) AS totalPlayers} RETURN count(t) AS totalTeams, totalPlayers'
       }.each do |dialect, expected|
-        it "noImports(#{dialect})" do
+        it "no imports(#{dialect})" do
           p = Cypher.node('Player').named(:p)
           t = Cypher.node('Team').named(:t)
 
@@ -121,7 +121,7 @@ module CypherDSL
     end
 
     describe 'ResultReturningSubqueries' do
-      it 'importingVariablesShouldWork' do
+      it 'importing variables should work' do
         statement = Cypher.unwind(Cypher.literal_of(0), Cypher.literal_of(1), Cypher.literal_of(2))
                           .as(:x)
                           .call(Cypher.with(Cypher.name(:x))
@@ -133,7 +133,7 @@ module CypherDSL
         expect(cypher_renderer.render(statement)).to eq('UNWIND [0, 1, 2] AS x CALL {WITH x RETURN (x * 10) AS y} RETURN x, y')
       end
 
-      it 'postUnionProcessingShouldWork' do
+      it 'post union processing should work' do
         age_property = Cypher.property(:p, :age)
         name_property = Cypher.property(:p, :name)
 
@@ -151,7 +151,7 @@ module CypherDSL
         )
       end
 
-      it 'aggregationAndSideEffectsShouldWork' do
+      it 'aggregation and side effects should work' do
         person = Cypher.node('Person').named(:p)
         clone = Cypher.node('Clone').named(:c)
         statement = Cypher.match(person)
@@ -168,7 +168,7 @@ module CypherDSL
         )
       end
 
-      it 'aggregationOnImportedVariablesShouldWork' do
+      it 'aggregation on imported variables should work' do
         person = Cypher.node('Person').named(:p)
         other = Cypher.node('Person').named(:other)
         statement = Cypher.match(person)
@@ -185,7 +185,7 @@ module CypherDSL
         )
       end
 
-      it 'nestedAfterProcedureCall' do
+      it 'nested after procedure call' do
         # With with
         statement = Cypher.call('dbms.components')
                           .yield(:name)
@@ -250,7 +250,7 @@ module CypherDSL
         )
       end
 
-      it 'afterRegularWith' do
+      it 'after regular with' do
         statement = Cypher.match(Cypher.node('Person').named(:p))
                           .with(:p)
                           .call(Cypher.with(:p)
@@ -265,7 +265,7 @@ module CypherDSL
           .to eq('MATCH (p:`Person`) WITH p CALL {WITH p MATCH (n) WHERE n.name = p.name RETURN n} RETURN n')
       end
 
-      it 'afterRegularWithManualImport' do
+      it 'after regular with manual import' do
         statement = Cypher.match(Cypher.node('Person').named(:p))
                           .with(:p)
                           .call(Cypher.match(Cypher.any_node.named(:n))
@@ -279,7 +279,7 @@ module CypherDSL
           .to eq('MATCH (p:`Person`) WITH p CALL {WITH p MATCH (n) WHERE n.name = p.name RETURN n} RETURN n')
       end
 
-      it 'callsCallingCalls' do
+      it 'calls calling calls' do
         statement = Cypher.match(Cypher.any_node.named(:n)).returning(:n).build
 
         5.times { statement = Cypher.call(statement).returning(:n).build }
@@ -291,7 +291,7 @@ module CypherDSL
     end
 
     describe 'ExistentialSubqueries' do
-      it 'fullStatementsAsExistentialSubQuery' do # GH-578
+      it 'full statements as existential sub query' do # GH-578
         p = Cypher.node('Person').named(:person)
         inner = Cypher.match(p.relationship_to(Cypher.node('Dog'), 'HAS_DOG')).returning(p.property(:name)).build
         outer = Cypher.match(p)
@@ -304,7 +304,7 @@ module CypherDSL
         )
       end
 
-      it 'fullStatementsAsExistentialSubQueryWithImports' do # GH-578
+      it 'full statements as existential sub query with imports' do # GH-578
         p = Cypher.node('Person').named(:person)
         d = Cypher.node('Dog').named(:d)
         dog_name = Cypher.name(:dogName)
@@ -339,7 +339,7 @@ module CypherDSL
         )
       end
 
-      it 'withBooleanOpsAndWhere' do
+      it 'with boolean ops and where' do
         p = Cypher.node('Person').named(:person)
         company = Cypher.any_node.named(:company)
         t = Cypher.node('Technology').named(:t)
@@ -383,7 +383,7 @@ module CypherDSL
     end
 
     describe 'InTransactions' do
-      it 'docs44_7' do
+      it 'docs44 7' do
         line = Cypher.name(:line)
         statement = Cypher.load_csv('file:///friends.csv')
                           .as(:line)
@@ -398,7 +398,7 @@ module CypherDSL
         )
       end
 
-      it 'docs44_7_1a' do
+      it 'docs44 7 1a' do
         line = Cypher.name(:line)
         statement = Cypher.load_csv('file:///friends.csv')
                           .as(:line)
@@ -413,7 +413,7 @@ module CypherDSL
         )
       end
 
-      it 'docs44_7_1b' do
+      it 'docs44 7 1b' do
         statement = Cypher.match(Cypher.any_node(:n))
                           .call_in_transactions(Cypher.with(:n).detach_delete(:n).build, 2)
                           .build
@@ -421,7 +421,7 @@ module CypherDSL
       end
 
       [-1, 23].each do |num_rows|
-        it "afterRegularWith(#{num_rows})" do
+        it "after regular with(#{num_rows})" do
           subquery = Cypher.create(Cypher.any_node(:p).relationship_to(Cypher.node('User').named(:u), 'IS'))
                            .returning(Cypher.name(:u))
                            .build
@@ -437,7 +437,7 @@ module CypherDSL
           expect(cypher_renderer.render(statement)).to eq(expected)
         end
 
-        it "afterRegularWithSymNameImport(#{num_rows})" do
+        it "after regular with sym name import(#{num_rows})" do
           p = Cypher.name(:p)
           subquery = Cypher.create(Cypher.any_node(p).relationship_to(Cypher.node('User').named(:u), 'IS'))
                            .returning(Cypher.name(:u))
@@ -455,7 +455,7 @@ module CypherDSL
         end
       end
 
-      it 'nestedAfterProcedureCall' do
+      it 'nested after procedure call' do
         # With with
         statement = Cypher.call('dbms.components')
                           .yield(:name)
@@ -531,7 +531,7 @@ module CypherDSL
       let(:has_dog) { person.relationship_to(dog, 'HAS_DOG') }
       let(:cat) { Cypher.node('Cat').named(:cat) }
 
-      it 'shouldCheckForReturnStatement' do
+      it 'checks for return statement' do
         non_return_statement = Cypher.create(Cypher.node('Foo')).build
         expect { Cypher.collect(non_return_statement) }.to raise_error(
           ArgumentError,
@@ -550,7 +550,7 @@ module CypherDSL
         )
       end
 
-      it 'withWhereClause' do
+      it 'with where clause' do
         r = has_dog.named(:r)
         inner = Cypher.match(r).where(r.property(:since).gt(Cypher.literal_of(2017))).returning(dog_name).build
         stmt = Cypher.match(person)
@@ -561,7 +561,7 @@ module CypherDSL
         )
       end
 
-      it 'withAUnion' do
+      it 'with a union' do
         has_cat = person.relationship_to(cat, 'HAS_CAT')
         inner = Cypher.union(Cypher.match(has_dog).returning(dog_name.as(:petName)).build,
                              Cypher.match(has_cat).returning(cat.property(:name).as(:petName)).build)
@@ -574,7 +574,7 @@ module CypherDSL
         )
       end
 
-      it 'withWith' do
+      it 'with with' do
         r = has_dog.named(:r)
         year_of_the_dog = Cypher.literal_of(2018).as(:yearOfTheDog)
         inner = Cypher.match(r).where(r.property(:since).eq(year_of_the_dog)).returning(dog_name).build
@@ -587,7 +587,7 @@ module CypherDSL
         )
       end
 
-      it 'inReturn' do
+      it 'in return' do
         toy = Cypher.node('Toy').named(:t)
         inner = Cypher.match(has_dog)
                       .match(dog.relationship_to(toy, 'HAS_TOY'))
@@ -601,7 +601,7 @@ module CypherDSL
         )
       end
 
-      it 'collectInSet' do
+      it 'collect in set' do
         inner = Cypher.match(has_dog).returning(dog_name).build
         stmt = Cypher.match(person)
                      .where(person.property(:name).eq(Cypher.literal_of('Peter')))
@@ -613,7 +613,7 @@ module CypherDSL
         )
       end
 
-      it 'inCase' do
+      it 'in case' do
         inner = Cypher.match(has_dog).returning(dog_name).build
         stmt = Cypher.match(person)
                      .returning(Cypher.case_expression
@@ -627,7 +627,7 @@ module CypherDSL
         )
       end
 
-      it 'asGroupingKey' do
+      it 'as grouping key' do
         inner = Cypher.match(has_dog).returning(dog_name).build
         stmt = Cypher.match(person)
                      .returning(Cypher.collect(inner).as(:dogNames), Cypher.avg(person.property(:age)).as(:averageAge))

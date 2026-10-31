@@ -10,13 +10,13 @@ module CypherDSL
       Clauses.merge([Cypher.any_node(:n)], [on_create])
     end
 
-    it 'shouldRenderForeach' do
+    it 'renders foreach' do
       clause = Clauses.for_each(Cypher.name(:a), Cypher.list_of, [merge_on_create])
 
       expect(renderer.render(Statement.of([clause]))).to eq('FOREACH (a IN [] | MERGE (n) ON CREATE SET n.prop = 1)')
     end
 
-    it 'shouldRenderNestedForeach' do
+    it 'renders nested foreach' do
       inner = Clauses.for_each(Cypher.name(:a), Cypher.list_of, [merge_on_create])
       clause = Clauses.for_each(Cypher.name(:a), Cypher.list_of, [inner])
 
@@ -24,7 +24,7 @@ module CypherDSL
         .to eq('FOREACH (a IN [] | FOREACH (a IN [] | MERGE (n) ON CREATE SET n.prop = 1))')
     end
 
-    it 'fakeIfAsDocumentedInKbShouldWork' do
+    it 'fake if as documented in kb should work' do
       node = Cypher.node('Node').named(:node).with_properties('id', Cypher.literal_of(12_345))
 
       needs_update = node.property(:needsUpdate)
@@ -44,7 +44,7 @@ module CypherDSL
       )
     end
 
-    it 'foreachCanBeChained' do
+    it 'foreach can be chained' do
       event = Cypher.name(:event)
       create = Cypher.name(:create)
       delete = Cypher.name(:delete)

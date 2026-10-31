@@ -6,14 +6,14 @@ module CypherDSL
     let(:bike_node) { Cypher.node('Bike').named(:b) }
     let(:user_node) { Cypher.node('User').named(:u) }
 
-    it 'statementShouldBeRenderable' do
+    it 'statement should be renderable' do
       statement = Cypher.returning(Cypher.literal_true.as(:t)).build
       cypher = statement.cypher
       expect(cypher).to eq('RETURN true AS t')
       expect(statement.cypher).to equal(cypher)
     end
 
-    it 'parameterLiterals' do
+    it 'parameter literals' do
       statement = Cypher
                   .returning(Cypher.literal_of(Cypher.parameter(:asd)).as(:t),
                              Cypher.literal_of({ another: Cypher.parameter(:parameter) }).as(:t2))
@@ -23,7 +23,7 @@ module CypherDSL
       expect(statement.cypher).to equal(cypher)
     end
 
-    it 'mapLiteralKeysMustBeEscaped' do
+    it 'map literal keys must be escaped' do
       n = Cypher.any_node(:n)
       evil_key = 'a: 1} OR true OR {b'
 
@@ -35,7 +35,7 @@ module CypherDSL
       expect(stmt.cypher).to eq('MATCH (n) WHERE n.attrs = {`a: 1} OR true OR {b`: 1} RETURN n')
     end
 
-    it 'shouldGenerateStatementsOfCorrectType' do
+    it 'generates statements of correct type' do
       statement = Cypher.returning(Cypher.literal_true.as(:t)).build
       expect(statement).to be_result_statement.and be_single_query
 

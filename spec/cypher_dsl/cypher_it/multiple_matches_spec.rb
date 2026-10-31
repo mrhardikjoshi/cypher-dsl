@@ -21,7 +21,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (b:`Bike`) MATCH (u:`User`), (o:`U`) RETURN b')
     end
 
-    it 'simpleWithPatternCollection' do # GH-189
+    it 'simple with pattern collection' do # GH-189
       statement = Cypher.match([bike_node])
                         .match(user_node, Cypher.node('U').named(:o))
                         .returning(bike_node)
@@ -30,7 +30,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (b:`Bike`) MATCH (u:`User`), (o:`U`) RETURN b')
     end
 
-    it 'simpleWithPatternCollectionInExposesMatch' do # GH-189
+    it 'simple with pattern collection in exposes match' do # GH-189
       pattern_elements = [user_node, Cypher.node('U').named(:o)]
       statement = Cypher.match([bike_node])
                         .match(pattern_elements)
@@ -40,7 +40,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (b:`Bike`) MATCH (u:`User`), (o:`U`) RETURN b')
     end
 
-    it 'simpleWhere' do
+    it 'simple where' do
       statement = Cypher.match(bike_node)
                         .match(user_node, Cypher.node('U').named(:o))
                         .where(user_node.property(:a).is_null)
@@ -50,7 +50,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (b:`Bike`) MATCH (u:`User`), (o:`U`) WHERE u.a IS NULL RETURN b')
     end
 
-    it 'multiWhere' do
+    it 'multi where' do
       statement = Cypher.match(bike_node)
                         .where(bike_node.property(:a).is_not_null)
                         .match(user_node, Cypher.node('U').named(:o))
@@ -63,7 +63,7 @@ module CypherDSL
       )
     end
 
-    it 'multiWhereMultiConditions' do
+    it 'multi where multi conditions' do
       statement = Cypher.match(bike_node)
                         .where(bike_node.property(:a).is_not_null)
                         .and(bike_node.property(:b).is_null)
@@ -89,7 +89,7 @@ module CypherDSL
         .to eq('OPTIONAL MATCH (b:`Bike`) MATCH (u:`User`), (o:`U`) WHERE u.a IS NULL RETURN b')
     end
 
-    it 'optionalWithFlag' do
+    it 'optional with flag' do
       statement = Cypher.match(true, bike_node)
                         .match(user_node, Cypher.node('U').named(:o))
                         .where(user_node.property(:a).is_null)
@@ -100,7 +100,7 @@ module CypherDSL
         .to eq('OPTIONAL MATCH (b:`Bike`) MATCH (u:`User`), (o:`U`) WHERE u.a IS NULL RETURN b')
     end
 
-    it 'optionalWithFlagAndPatternCollection' do # GH-189
+    it 'optional with flag and pattern collection' do # GH-189
       statement = Cypher.match(true, [bike_node])
                         .match(user_node, Cypher.node('U').named(:o))
                         .where(user_node.property(:a).is_null)
@@ -111,7 +111,7 @@ module CypherDSL
         .to eq('OPTIONAL MATCH (b:`Bike`) MATCH (u:`User`), (o:`U`) WHERE u.a IS NULL RETURN b')
     end
 
-    it 'optionalWithPatternCollection' do # GH-189
+    it 'optional with pattern collection' do # GH-189
       statement = Cypher.optional_match([bike_node])
                         .match(user_node, Cypher.node('U').named(:o))
                         .where(user_node.property(:a).is_null)
@@ -122,7 +122,7 @@ module CypherDSL
         .to eq('OPTIONAL MATCH (b:`Bike`) MATCH (u:`User`), (o:`U`) WHERE u.a IS NULL RETURN b')
     end
 
-    it 'usingSameWithStepWithReassign' do
+    it 'using same with step with reassign' do
       first_step = Cypher.match(bike_node).with(bike_node)
 
       first_step = first_step.optional_match(user_node)
@@ -133,7 +133,7 @@ module CypherDSL
         .to eq('MATCH (b:`Bike`) WITH b OPTIONAL MATCH (u:`User`) OPTIONAL MATCH (:`Trip`) RETURN *')
     end
 
-    it 'queryPartsShouldBeExtractableInQueries' do
+    it 'query parts should be extractable in queries' do
       # Those can be a couple of queries ending in a WITH statement so the
       # pipeline they present in the full query is also present in Ruby.
       step1 = lambda do |previous|
@@ -153,7 +153,7 @@ module CypherDSL
       )
     end
 
-    it 'optionalNext' do
+    it 'optional next' do
       statement = Cypher.match(bike_node)
                         .optional_match(user_node, Cypher.node('U').named(:o))
                         .where(user_node.property(:a).is_null)
@@ -164,7 +164,7 @@ module CypherDSL
         .to eq('MATCH (b:`Bike`) OPTIONAL MATCH (u:`User`), (o:`U`) WHERE u.a IS NULL RETURN b')
     end
 
-    it 'optionalNextBasedOnPatternElementCollection' do
+    it 'optional next based on pattern element collection' do
       pattern_elements = [user_node, Cypher.node('U').named(:o)]
       statement = Cypher.match(bike_node)
                         .optional_match(pattern_elements)
@@ -176,7 +176,7 @@ module CypherDSL
         .to eq('MATCH (b:`Bike`) OPTIONAL MATCH (u:`User`), (o:`U`) WHERE u.a IS NULL RETURN b')
     end
 
-    it 'optionalMatchThenDelete' do
+    it 'optional match then delete' do
       statement = Cypher.match(bike_node)
                         .optional_match(user_node, Cypher.node('U').named(:o))
                         .delete(user_node, bike_node)

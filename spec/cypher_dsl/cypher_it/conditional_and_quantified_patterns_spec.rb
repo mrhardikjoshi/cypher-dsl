@@ -3,7 +3,7 @@
 # Translated from CypherIT.java, nested classes ConditionalPatterns and QuantifiedPathPatterns.
 module CypherDSL
   RSpec.describe 'CypherIT / ConditionalPatterns' do
-    it 'nodesWithWhere' do
+    it 'nodes with where' do
       node = Cypher.node('Movie').with_properties({ 'title' => 'The Matrix' }).named(:n)
       cypher = Cypher.match(node.where(node.property(:released).eq(Cypher.literal_of(1999))))
                      .returning(node)
@@ -12,7 +12,7 @@ module CypherDSL
       expect(cypher).to eq("MATCH (n:`Movie` {title: 'The Matrix'} WHERE n.released = 1999) RETURN n")
     end
 
-    it 'relationshipsWithWhere' do
+    it 'relationships with where' do
       node = Cypher.node('Movie').with_properties({ 'title' => 'The Matrix' }).named(:n)
       actor = Cypher.node('Actor')
       cypher = Cypher
@@ -29,7 +29,7 @@ module CypherDSL
   RSpec.describe 'CypherIT / QuantifiedPathPatterns' do
     let(:relationship_pattern) { Cypher.node('A').named(:a).relationship_to(Cypher.node('B').named(:b), 'X') }
 
-    it 'quantifyShouldWork' do
+    it 'quantify should work' do
       cypher = Cypher.match(relationship_pattern.quantify(QuantifiedPathPattern.interval(1, 3)))
                      .returning(Cypher.asterisk)
                      .build
@@ -37,7 +37,7 @@ module CypherDSL
       expect(cypher).to eq('MATCH ((a:`A`)-[:`X`]->(b:`B`)){1,3} RETURN *')
     end
 
-    it 'nestingInBooleanExpressionIsAllowed' do
+    it 'nesting in boolean expression is allowed' do
       pattern = Cypher.any_node(:n)
                       .relationship_to(Cypher.node('X'))
                       .quantify_relationship(QuantifiedPathPattern.plus)
@@ -50,7 +50,7 @@ module CypherDSL
       expect(cypher).to eq('MATCH ((n:`A`)-[:`R`]->( {p: 30}) WHERE EXISTS { (n)-->+(:`X`) }){2,3} RETURN *')
     end
 
-    it 'betweenMAndNIterations' do
+    it 'between m and n iterations' do
       cypher = Cypher.match(relationship_pattern.quantify_relationship(QuantifiedPathPattern.interval(1, 3)))
                      .returning(Cypher.asterisk)
                      .build
@@ -58,7 +58,7 @@ module CypherDSL
       expect(cypher).to eq('MATCH (a:`A`)-[:`X`]->{1,3}(b:`B`) RETURN *')
     end
 
-    it 'oneOrMoreIterations' do
+    it 'one or more iterations' do
       cypher = Cypher.match(relationship_pattern.quantify_relationship(QuantifiedPathPattern.interval(1, nil)))
                      .returning(Cypher.asterisk)
                      .build
@@ -66,7 +66,7 @@ module CypherDSL
       expect(cypher).to eq('MATCH (a:`A`)-[:`X`]->{1,}(b:`B`) RETURN *')
     end
 
-    it 'zeroOrMoreIterations' do
+    it 'zero or more iterations' do
       cypher = Cypher.match(relationship_pattern.quantify_relationship(QuantifiedPathPattern.interval(0, nil)))
                      .returning(Cypher.asterisk)
                      .build
@@ -74,7 +74,7 @@ module CypherDSL
       expect(cypher).to eq('MATCH (a:`A`)-[:`X`]->{0,}(b:`B`) RETURN *')
     end
 
-    it 'nIterations' do
+    it 'n iterations' do
       cypher = Cypher.match(relationship_pattern.quantify_relationship(QuantifiedPathPattern.interval(1, 1)))
                      .returning(Cypher.asterisk)
                      .build
@@ -82,7 +82,7 @@ module CypherDSL
       expect(cypher).to eq('MATCH (a:`A`)-[:`X`]->{1,1}(b:`B`) RETURN *')
     end
 
-    it 'zeroOrMore' do
+    it 'zero or more' do
       cypher = Cypher.match(relationship_pattern.quantify_relationship(QuantifiedPathPattern.interval(nil, nil)))
                      .returning(Cypher.asterisk)
                      .build
@@ -90,7 +90,7 @@ module CypherDSL
       expect(cypher).to eq('MATCH (a:`A`)-[:`X`]->{0,}(b:`B`) RETURN *')
     end
 
-    it 'between0AndNIterations' do
+    it 'between0 and n iterations' do
       cypher = Cypher.match(relationship_pattern.quantify_relationship(QuantifiedPathPattern.interval(nil, 3)))
                      .returning(Cypher.asterisk)
                      .build
@@ -98,17 +98,17 @@ module CypherDSL
       expect(cypher).to eq('MATCH (a:`A`)-[:`X`]->{0,3}(b:`B`) RETURN *')
     end
 
-    it 'invalidLower' do
+    it 'invalid lower' do
       expect { QuantifiedPathPattern.interval(-1, nil) }
         .to raise_error(ArgumentError, 'Lower bound must be greater than or equal to zero')
     end
 
-    it 'invalidLower1' do
+    it 'invalid lower1' do
       expect { QuantifiedPathPattern.interval(nil, 0) }
         .to raise_error(ArgumentError, 'Upper bound must be greater than zero')
     end
 
-    it 'invalidLower2' do
+    it 'invalid lower2' do
       expect { QuantifiedPathPattern.interval(2, 1) }
         .to raise_error(ArgumentError, 'Upper bound must be greater than or equal to 2')
       expect { QuantifiedPathPattern.interval(2, 2) }.not_to raise_error

@@ -83,14 +83,14 @@ module CypherDSL
         )
       end
 
-      it 'requiredSymbolicNameShouldBeGenerated' do
+      it 'required symbolic name should be generated' do
         person = Cypher.node('Person')
         statement = Cypher.match(person).returning(person.project('something')).build
         expect(renderer.render(statement))
           .to match(/\AMATCH \([a-zA-Z].*\d{3}:`Person`\) RETURN [a-zA-Z].*\d{3}\{\.something}\z/)
       end
 
-      it 'generatedSymbolicNameMustPreventNodeContentDoubleRenderingAswWell' do
+      it 'generated symbolic name must prevent node content double rendering asw well' do
         person = Cypher.node('Person')
         expect(person.required_symbolic_name).not_to be_nil
         movie = Cypher.node('Movie')
@@ -104,7 +104,7 @@ module CypherDSL
         )
       end
 
-      it 'addedProjections' do
+      it 'added projections' do
         p = Cypher.node('Person').named(:p)
         m = Cypher.node('Movie').named(:m)
         rel = p.relationship_to(m, 'ACTED_IN').named(:r)
@@ -150,7 +150,7 @@ module CypherDSL
         )
       end
 
-      it 'requiredSymbolicNameShouldBeGenerated' do
+      it 'required symbolic name should be generated' do
         n = Cypher.node('Person')
         m = Cypher.node('Movie')
         rel = n.relationship_to(m, 'ACTED_IN')

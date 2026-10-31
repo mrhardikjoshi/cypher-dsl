@@ -6,7 +6,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'shouldRenderSetAfterCreate' do
+    it 'renders set after create' do
       statement = Cypher.create(user_node)
                         .set(user_node.property(:p).to(Cypher.literal_of('Hallo, Welt')))
                         .build
@@ -14,7 +14,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("CREATE (u:`User`) SET u.p = 'Hallo, Welt'")
     end
 
-    it 'shouldRenderSetAfterMerge' do
+    it 'renders set after merge' do
       statement = Cypher.merge(user_node)
                         .set(user_node.property(:p).to(Cypher.literal_of('Hallo, Welt')))
                         .build
@@ -22,7 +22,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MERGE (u:`User`) SET u.p = 'Hallo, Welt'")
     end
 
-    it 'shouldRenderSetAfterCreateAndWith' do
+    it 'renders set after create and with' do
       statement = Cypher.create(user_node)
                         .with(user_node)
                         .set(user_node.property(:p).to(Cypher.literal_of('Hallo, Welt')))
@@ -31,7 +31,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("CREATE (u:`User`) WITH u SET u.p = 'Hallo, Welt'")
     end
 
-    it 'shouldRenderSetAfterMergeAndWith' do
+    it 'renders set after merge and with' do
       statement = Cypher.merge(user_node)
                         .with(user_node)
                         .set(user_node.property(:p).to(Cypher.literal_of('Hallo, Welt')))
@@ -40,7 +40,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MERGE (u:`User`) WITH u SET u.p = 'Hallo, Welt'")
     end
 
-    it 'shouldRenderSet' do
+    it 'renders set' do
       statement = Cypher.match(user_node)
                         .set(user_node.property(:p).to(Cypher.literal_of('Hallo, Welt')))
                         .build
@@ -62,7 +62,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (u:`User`) SET u.p = 'Hallo', u.g = 'Welt'")
     end
 
-    it 'shouldRenderSetOnNodes' do
+    it 'renders set on nodes' do
       statement = Cypher.match(user_node).set(user_node, 'A', 'B').returning(user_node).build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) SET u:`A`:`B` RETURN u')
@@ -77,7 +77,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) WITH u SET u:`A`:`B` SET u:`C`:`D` RETURN u')
     end
 
-    it 'shouldRenderSetFromAListOfExpression' do
+    it 'renders set from a list of expression' do
       statement = Cypher.match(user_node).set(user_node.property(:p), Cypher.literal_of('Hallo, Welt')).build
 
       expect(renderer.render(statement)).to eq("MATCH (u:`User`) SET u.p = 'Hallo, Welt'")
@@ -102,7 +102,7 @@ module CypherDSL
         .to raise_error(ArgumentError, 'The list of expression to set must be even.')
     end
 
-    it 'shouldRenderMixedSet' do
+    it 'renders mixed set' do
       statement = Cypher.match(user_node)
                         .set(user_node.property(:p1), Cypher.literal_of('Two expressions'))
                         .set(user_node.property(:p2).to(Cypher.literal_of('A set expression')))

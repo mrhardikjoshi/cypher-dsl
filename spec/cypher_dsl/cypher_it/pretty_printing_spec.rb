@@ -95,14 +95,14 @@ module CypherDSL
       CYPHER
     end
 
-    it 'escapingNamesShouldBeOptionalInNonPrettyPrintToo' do
+    it 'escaping names should be optional in non pretty print too' do
       renderer = Renderer.get_renderer(Renderer::Configuration.new_config.always_escape_names(false).build)
       expect(renderer.render(Cypher.match(Cypher.node('Fine').named(:a)).returning(:a).build)).to eq('MATCH (a:Fine) RETURN a')
       expect(renderer.render(Cypher.match(Cypher.node('Not Fine').named(:a)).returning(:a).build))
         .to eq('MATCH (a:`Not Fine`) RETURN a')
     end
 
-    it 'configurationOfIndentWithShouldWork' do
+    it 'configuration of indent with should work' do
       renderer = Renderer.get_renderer(Renderer::Configuration.new_config.with_pretty_print(true).with_indent_size(5).build)
       rendered = renderer.render(Cypher.match(Cypher.node('Node')).where(Cypher.is_true).and(Cypher.is_false).returning(Cypher.asterisk).build)
       expect(rendered).to eq(<<~CYPHER.chomp)
@@ -113,18 +113,18 @@ module CypherDSL
       CYPHER
     end
 
-    it 'prettyPrintingWithDefaultSettingShouldWork' do
+    it 'pretty printing with default setting should work' do
       expect(pretty_renderer.render(statement)).to eq(expected_with_spaces)
     end
 
-    it 'prettyPrintingWithTabsShouldWork' do
+    it 'pretty printing with tabs should work' do
       renderer = Renderer.get_renderer(Renderer::Configuration.new_config.with_pretty_print(true).with_indent_style(:tab).build)
       expected_with_tabs = expected_with_spaces.gsub(/^(?:  )+/) { |indentation| "\t" * (indentation.size / 2) }
       expect(renderer.render(statement)).to eq(expected_with_tabs)
     end
 
     # See https://neo4j.com/docs/cypher-manual/current/styleguide/#cypher-styleguide-indentation-and-line-breaks
-    it 'onClauses' do
+    it 'on clauses' do
       n = Cypher.any_node(:n)
       a = Cypher.node('A').named(:a)
       b = Cypher.node('B').named(:b)
@@ -150,7 +150,7 @@ module CypherDSL
       CYPHER
     end
 
-    it 'singleExistsSubquery' do
+    it 'single exists subquery' do
       a = Cypher.node('A').named(:a)
       b = Cypher.node('B').named(:b)
 
@@ -168,7 +168,7 @@ module CypherDSL
       CYPHER
     end
 
-    it 'multipleSubQueries' do
+    it 'multiple sub queries' do
       a = Cypher.node('A').named(:a)
       b = Cypher.node('B').named(:b)
       c = Cypher.name(:c)
@@ -196,7 +196,7 @@ module CypherDSL
       CYPHER
     end
 
-    it 'prettyPrintingQueryStartingWithSubquery' do
+    it 'pretty printing query starting with subquery' do
       raw_query = 'MATCH (node) RETURN node'
       node = Cypher.name(:node)
       result_statement = Cypher.call(Cypher.returning_raw(Cypher.raw(raw_query).as(node)).build)

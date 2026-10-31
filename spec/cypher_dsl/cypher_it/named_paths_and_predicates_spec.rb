@@ -19,14 +19,14 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH p = (michael {name: 'Michael Douglas'})-->() RETURN p")
     end
 
-    it 'shouldWorkInListComprehensions' do
+    it 'works in list comprehensions' do
       p = Cypher.path(:p).defined_by(Cypher.any_node(:n).relationship_to(Cypher.any_node, 'LIKES', 'OWNS').unbounded)
       statement = Cypher.returning(Cypher.list_based_on(p).returning(p)).build
 
       expect(renderer.render(statement)).to eq('RETURN [p = (n)-[:`LIKES`|`OWNS`*]->() | p]')
     end
 
-    it 'shouldWorkWithRelationshipPatterns' do # GH-200
+    it 'works with relationship patterns' do # GH-200
       relationship_pattern = Cypher.any_node(:n).relationship_to(Cypher.any_node(:m))
       p = Cypher.path(:p).defined_by(relationship_pattern)
       statement = Cypher.match(p).returning(p).build
@@ -34,14 +34,14 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH p = (n)-->(m) RETURN p')
     end
 
-    it 'shouldWorkWithNodes' do # GH-200
+    it 'works with nodes' do # GH-200
       p = Cypher.path(:p).defined_by(Cypher.any_node(:n))
       statement = Cypher.match(p).returning(p).build
 
       expect(renderer.render(statement)).to eq('MATCH p = (n) RETURN p')
     end
 
-    it 'shouldDirectlyUseProvidedNamedPaths' do # GH-200
+    it 'directlies use provided named paths' do # GH-200
       p = Cypher.path(:p).defined_by(Cypher.any_node(:n))
       x = Cypher.path(:x).defined_by(p)
       statement = Cypher.match(x).returning(p).build
@@ -53,7 +53,7 @@ module CypherDSL
   RSpec.describe 'CypherIT / Predicatez' do
     let(:renderer) { Renderer.default }
 
-    it 'allShouldWork' do
+    it 'all should work' do
       p = Cypher.path(:p).defined_by(Cypher.any_node(:a).relationship_to(Cypher.any_node(:b)).min(1).max(3))
       statement = Cypher.match(p)
                         .where(Cypher.property(:a, :name).is_equal_to(Cypher.literal_of('Alice')))
@@ -67,7 +67,7 @@ module CypherDSL
       )
     end
 
-    it 'anyShouldWork' do
+    it 'any should work' do
       a = Cypher.any_node(:a)
       statement = Cypher.match(a)
                         .where(Cypher.property(:a, :name).is_equal_to(Cypher.literal_of('Eskil')))
@@ -80,7 +80,7 @@ module CypherDSL
       )
     end
 
-    it 'noneShouldWork' do
+    it 'none should work' do
       p = Cypher.path(:p).defined_by(Cypher.any_node(:a).relationship_to(Cypher.any_node(:b)).min(1).max(3))
       statement = Cypher.match(p)
                         .where(Cypher.property(:a, :name).is_equal_to(Cypher.literal_of('Alice')))
@@ -95,7 +95,7 @@ module CypherDSL
       )
     end
 
-    it 'singleShouldWork' do
+    it 'single should work' do
       p = Cypher.path(:p).defined_by(Cypher.any_node(:n).relationship_to(Cypher.any_node(:b)))
       statement = Cypher.match(p)
                         .where(Cypher.property(:n, :name).is_equal_to(Cypher.literal_of('Alice')))

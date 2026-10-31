@@ -25,7 +25,7 @@ module CypherDSL
       expect(statement.cypher).to eq('MATCH p = (:`Station`)-[l:`LINK`]->(b:`Station`) RETURN p')
     end
 
-    it 'deprecatedShortest' do
+    it 'deprecated shortest' do
       pattern = Cypher.node('Station').relationship_to(Cypher.node('Station').named(:b), 'LINK').named(:l)
       statement = Cypher.match(Cypher.any_shortest.named(:p).defined_by(pattern))
                         .returning(Cypher.name(:p))
@@ -34,7 +34,7 @@ module CypherDSL
     end
 
     [-1, 0, 1, 5].each do |k|
-      it "shortestK(#{k})" do
+      it "shortest k(#{k})" do
         if k <= 0
           expect { Cypher.shortest_k(k) }.to raise_error(ArgumentError, 'The path count needs to be greater than 0.')
         else
@@ -51,7 +51,7 @@ module CypherDSL
     end
 
     [-1, 0, 1, 2].each do |k|
-      it "shortestKGroups(#{k})" do
+      it "shortest k groups(#{k})" do
         if k <= 0
           expect { Cypher.shortest_k(k) }.to raise_error(ArgumentError, 'The path count needs to be greater than 0.')
         else
@@ -67,7 +67,7 @@ module CypherDSL
       end
     end
 
-    it 'allShortest' do
+    it 'all shortest' do
       statement = Cypher.match(Cypher.all_shortest.named(:p).defined_by(stations_pattern))
                         .where(Cypher.property(:wos, :name).is_equal_to(Cypher.literal_of('Worcester Shrub Hill')))
                         .and(Cypher.property(:bmv, :name).is_equal_to(Cypher.literal_of('Bromsgrove')))
@@ -78,7 +78,7 @@ module CypherDSL
       )
     end
 
-    it 'anyShortest' do
+    it 'any shortest' do
       pattern = Cypher.node('Station')
                       .with_properties('name', Cypher.literal_of('Pershore'))
                       .relationship_between(Cypher.node('Station').named(:b).with_properties('name', Cypher.literal_of('Bromsgrove')), 'LINK')

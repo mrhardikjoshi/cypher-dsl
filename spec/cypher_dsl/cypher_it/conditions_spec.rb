@@ -6,7 +6,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'conditionsChainingAnd' do
+    it 'conditions chaining and' do
       statement = Cypher.match(user_node)
                         .where(user_node.property(:name)
                                         .is_equal_to(Cypher.literal_of('Test'))
@@ -17,7 +17,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (u:`User`) WHERE (u.name = 'Test' AND u.age = 21) RETURN u")
     end
 
-    it 'conditionsChainingOr' do
+    it 'conditions chaining or' do
       statement = Cypher.match(user_node)
                         .where(user_node.property(:name)
                                         .is_equal_to(Cypher.literal_of('Test'))
@@ -28,7 +28,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (u:`User`) WHERE (u.name = 'Test' OR u.age = 21) RETURN u")
     end
 
-    it 'includesAllShouldWork' do
+    it 'includes all should work' do
       node = Cypher.any_node.named(:n)
       statement = Cypher.match(node)
                         .where(Cypher.includes_all(node.property(:l), Cypher.literal_of(%w[A B])))
@@ -44,7 +44,7 @@ module CypherDSL
       expect(statement2.cypher).to eq(statement.cypher)
     end
 
-    it 'includesAnyShouldWork' do
+    it 'includes any should work' do
       node = Cypher.any_node.named(:n)
       statement = Cypher.match(node)
                         .where(Cypher.includes_any(node.property(:l), Cypher.literal_of(%w[A B])))
@@ -60,7 +60,7 @@ module CypherDSL
       expect(statement2.cypher).to eq(statement.cypher)
     end
 
-    it 'nestedConditions' do
+    it 'nested conditions' do
       is_true = Cypher.is_true
       is_false = Cypher.is_false
       statement = Cypher.match(user_node).where(is_true.or(is_false).and(is_true)).returning(user_node).build
@@ -135,7 +135,7 @@ module CypherDSL
       )
     end
 
-    it 'conditionsChainingXor' do
+    it 'conditions chaining xor' do
       statement = Cypher.match(user_node)
                         .where(user_node.property(:name)
                                         .is_equal_to(Cypher.literal_of('Test'))
@@ -146,7 +146,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (u:`User`) WHERE (u.name = 'Test' XOR u.age = 21) RETURN u")
     end
 
-    it 'multipleEmptyConditionsMustCollapse' do # GH-110
+    it 'multiple empty conditions must collapse' do # GH-110
       no = Cypher.no_condition
       expected = 'MATCH (u:`User`) RETURN u'
 
@@ -160,7 +160,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq(expected)
     end
 
-    it 'multipleEmptyConditionsMustCollapse2' do # GH-110
+    it 'multiple empty conditions must collapse2' do # GH-110
       no = Cypher.no_condition
       t = -> { user_node.property(:a).is_equal_to(Cypher.literal_true) }
       expected = 'MATCH (u:`User`) WHERE u.a = true RETURN u'
@@ -182,7 +182,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq(expected)
     end
 
-    it 'multipleEmptyConditionsMustCollapse3' do # GH-110
+    it 'multiple empty conditions must collapse3' do # GH-110
       no = Cypher.no_condition
       t = -> { user_node.property(:a).is_equal_to(Cypher.literal_true) }
       f = -> { user_node.property(:b).is_equal_to(Cypher.literal_false) }
@@ -206,7 +206,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq(expected)
     end
 
-    it 'chainingOnWhere' do
+    it 'chaining on where' do
       test = Cypher.literal_of('Test')
       foobar = Cypher.literal_of('foobar')
       name = -> { user_node.property(:name) }
@@ -302,7 +302,7 @@ module CypherDSL
         .to eq("MATCH (u:`User`) WHERE ((u.name IS NOT NULL AND u.name = 'Test') OR u.age = 21) RETURN u")
     end
 
-    it 'chainingOnConditions' do
+    it 'chaining on conditions' do
       test = Cypher.literal_of('Test')
       foobar = Cypher.literal_of('foobar')
       bazbar = Cypher.literal_of('bazbar')
@@ -357,7 +357,7 @@ module CypherDSL
       )
     end
 
-    it 'chainingCombined' do
+    it 'chaining combined' do
       test = Cypher.literal_of('Test')
       foobar = Cypher.literal_of('foobar')
       bazbar = Cypher.literal_of('bazbar')
@@ -382,7 +382,7 @@ module CypherDSL
       )
     end
 
-    it 'negatedConditions' do
+    it 'negated conditions' do
       statement = Cypher.match(user_node)
                         .where(user_node.property(:name).is_not_null.not)
                         .returning(user_node)
@@ -391,7 +391,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) WHERE u.name IS NULL RETURN u')
     end
 
-    it 'noConditionShouldNotBeRendered' do
+    it 'no condition should not be rendered' do
       statement = Cypher.match(user_node).where(Cypher.no_condition).returning(user_node).build
 
       expect(renderer.render(statement)).to eq('MATCH (u:`User`) RETURN u')
@@ -406,7 +406,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (u:`User`) WHERE u.name = 'test' RETURN u")
     end
 
-    it 'groupingBug' do # GH-137
+    it 'grouping bug' do # GH-137
       node = Cypher.node('Person').named(:person)
 
       statement = Cypher.match(node)
@@ -429,7 +429,7 @@ module CypherDSL
       )
     end
 
-    it 'inPatternComprehensions' do # GH-244
+    it 'in pattern comprehensions' do # GH-244
       a = Cypher.node('Person').with_properties('name', Cypher.literal_of('Keanu Reeves')).named(:a)
       b = Cypher.any_node(:b)
 
@@ -486,7 +486,7 @@ module CypherDSL
       let(:other) { Cypher.node('Person').named(:other) }
       let(:andy_or_peter) { Cypher.list_of(Cypher.literal_of('Andy'), Cypher.literal_of('Peter')) }
 
-      it 'doc3651And' do
+      it 'doc3651 and' do
         expected = "MATCH (timothy:`Person` {name: 'Timothy'}), (other:`Person`) WHERE (other.name IN ['Andy', 'Peter'] AND (timothy)<--(other)) RETURN other.name, other.age"
         statement = Cypher.match(timothy, other)
                           .where(other.property(:name).in(andy_or_peter))
@@ -503,7 +503,7 @@ module CypherDSL
         expect(renderer.render(statement)).to eq(expected)
       end
 
-      it 'doc3651Or' do
+      it 'doc3651 or' do
         expected = "MATCH (timothy:`Person` {name: 'Timothy'}), (other:`Person`) WHERE (other.name IN ['Andy', 'Peter'] OR (timothy)<--(other)) RETURN other.name, other.age"
         statement = Cypher.match(timothy, other)
                           .where(other.property(:name).in(andy_or_peter))
@@ -520,7 +520,7 @@ module CypherDSL
         expect(renderer.render(statement)).to eq(expected)
       end
 
-      it 'doc3651XOr' do
+      it 'doc3651 x or' do
         expected = "MATCH (timothy:`Person` {name: 'Timothy'}), (other:`Person`) WHERE (other.name IN ['Andy', 'Peter'] XOR (timothy)<--(other)) RETURN other.name, other.age"
         statement = Cypher.match(timothy, other)
                           .where(other.property(:name).in(andy_or_peter).xor(timothy.relationship_from(other)))
@@ -587,7 +587,7 @@ module CypherDSL
         )
       end
 
-      it 'afterWith' do
+      it 'after with' do
         expected = "MATCH (timothy:`Person` {name: 'Timothy'}), (other:`Person`) WITH timothy, other WHERE (other.name IN ['Andy', 'Peter'] AND (timothy)<--(other)) RETURN other.name, other.age"
         statement = Cypher.match(timothy, other)
                           .with(timothy, other)

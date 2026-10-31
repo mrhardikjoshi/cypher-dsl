@@ -14,7 +14,13 @@ line-by-line port. The reference source is a full clone of the Java project at
   group by feature group (the nested classes of `CypherIT.java` are the map).
   Keep the expected Cypher strings **verbatim**; they are the contract.
 - One spec file per upstream test class or nested group, named after it
-  (`CypherIT` → `spec/cypher_dsl/cypher_it/<nested_group>_spec.rb`).
+  (`CypherIT` → `spec/cypher_dsl/cypher_it/<nested_group>_spec.rb`). The
+  `describe` string keeps the upstream class names (`'CypherIT / Conditions'`).
+- Example names are the upstream test method names split into lowercase
+  words, with a leading "should" dropped as RSpec style wants:
+  `shouldRenderMergeWithoutReturn` → `it 'renders merge without return'`,
+  `unrelatedNodes` → `it 'unrelated nodes'`. That reads like RSpec and still
+  maps one to one onto the Java test.
 - Record what was skipped and why at the top of each spec file (Java-only
   constructs, QueryDSL adapter, native tests, etc.).
 

@@ -7,7 +7,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'usingExistingJavaMaps' do # GH-157
+    it 'using existing java maps' do # GH-157
       new_properties = { 'prop1' => 23, 'theTruth' => 42, 'somethingElse' => 'foobar',
                          'aParam' => Cypher.parameter(:x).with_value('y') }
       node = Cypher.node('ANode').named(:n).with_properties(new_properties)
@@ -16,7 +16,7 @@ module CypherDSL
         .to eq("MATCH (n:`ANode` {prop1: 23, theTruth: 42, somethingElse: 'foobar', aParam: $x}) RETURN n")
     end
 
-    it 'manuallyNested' do # GH-114
+    it 'manually nested' do # GH-114
       node = Cypher.node('Person').named(:p)
 
       location_property = node.property(:location)
@@ -39,7 +39,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (p:`Person`) WHERE p.location.x > 6 RETURN p')
     end
 
-    it 'chainedAndFancy' do # GH-114
+    it 'chained and fancy' do # GH-114
       node = Cypher.node('Person').named(:p)
 
       point = Cypher.point(Cypher.map_of('latitude', Cypher.literal_of(50.751), 'longitude', Cypher.literal_of(6.179)))
@@ -58,7 +58,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (p:`Person`) WHERE p.`home.location`.y > 50 RETURN p')
     end
 
-    it 'explicitlyDefined' do # GH-123
+    it 'explicitly defined' do # GH-123
       node = Cypher.node('Person').named(:p)
 
       ly1 = Cypher.property(node.required_symbolic_name, 'home.location', :y)
@@ -70,7 +70,7 @@ module CypherDSL
         .to eq('MATCH (p:`Person`) WHERE p.`home.location`.y > 50 RETURN p.`home.location`.y')
     end
 
-    it 'chainedInProjection' do
+    it 'chained in projection' do
       node = Cypher.node('Person').named(:p)
       expect do
         Cypher.match(node)
@@ -80,7 +80,7 @@ module CypherDSL
       end.to raise_error(ArgumentError, 'Cannot project nested properties!')
     end
 
-    it 'shouldRenderNodeProperties' do
+    it 'renders node properties' do
       [
         Cypher.node('Test', Cypher.map_of('a', Cypher.literal_of('b'))),
         Cypher.node('Test').with_properties(Cypher.map_of('a', Cypher.literal_of('b'))),
@@ -96,7 +96,7 @@ module CypherDSL
       end
     end
 
-    it 'nestedProperties' do
+    it 'nested properties' do
       node_with_properties = Cypher.node('Test').with_properties('outer', Cypher.map_of('a', Cypher.literal_of('b')))
 
       statement = Cypher.match(node_with_properties).returning(Cypher.asterisk).build
@@ -104,7 +104,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (:`Test` {outer: {a: 'b'}}) RETURN *")
     end
 
-    it 'shouldNotRenderPropertiesInReturn' do
+    it 'does not render properties in return' do
       node_with_properties = bike_node.with_properties('a', Cypher.literal_of('b'))
 
       statement = Cypher.match(node_with_properties, node_with_properties.relationship_from(user_node, 'OWNS'))
@@ -114,7 +114,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("MATCH (b:`Bike` {a: 'b'}), (b)<-[:`OWNS`]-(u:`User`) RETURN b")
     end
 
-    it 'dynamicPropertyLookupsOnNodes' do # GH-127
+    it 'dynamic property lookups on nodes' do # GH-127
       m = Cypher.node('Movie').named(:m)
 
       statement = Cypher.match(m).returning(m.property(Cypher.literal_of('title'))).build
@@ -124,7 +124,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (m:`Movie`) RETURN m[$prop]')
     end
 
-    it 'dynamicPropertyLookupsOnRelationships' do # GH-127
+    it 'dynamic property lookups on relationships' do # GH-127
       m = Cypher.node('Movie').named(:m)
       r = m.relationship_from(Cypher.any_node, 'ACTED_IN').named(:r)
 
@@ -135,7 +135,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq('MATCH (m:`Movie`)<-[r:`ACTED_IN`]-() RETURN r[$prop]')
     end
 
-    it 'arbitraryDynamicLookups' do # GH-127
+    it 'arbitrary dynamic lookups' do # GH-127
       m = Cypher.node('Movie').named(:m)
 
       statement = Cypher.match(m).returning(Cypher.property(:m, Cypher.literal_of('title'))).build
@@ -152,7 +152,7 @@ module CypherDSL
       expect(renderer.render(statement)).to eq("WITH {a: 'X', b: 'Y'} AS m RETURN m['a'], m.a")
     end
 
-    it 'indexedProperties' do
+    it 'indexed properties' do
       alias_name = SymbolicName.of('line')
       statement = Cypher.returning(Cypher.value_at(alias_name, 1)).build
       expect(statement.cypher).to eq('RETURN line[1]')

@@ -5,7 +5,7 @@ module CypherDSL
   RSpec.describe 'CypherIT / WithAndOrder' do
     let(:renderer) { Renderer.default }
 
-    it 'orderOnWithShouldWork' do
+    it 'order on with should work' do
       by_title = Cypher.sort(Cypher.property(:m, :title))
       by_name = Cypher.sort(Cypher.property(:p, :name))
 
@@ -22,7 +22,7 @@ module CypherDSL
       end
     end
 
-    it 'concatenatedOrdering' do
+    it 'concatenated ordering' do
       statement = Cypher
                   .match(Cypher.node('Movie').named(:m).relationship_from(Cypher.node('Person').named(:p), 'ACTED_IN').named(:r))
                   .with(Cypher.name(:m), Cypher.name(:p))

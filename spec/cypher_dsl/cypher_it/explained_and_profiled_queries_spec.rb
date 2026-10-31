@@ -7,7 +7,7 @@ module CypherDSL
     let(:user_node) { Cypher.node('User').named(:u) }
     let(:renderer) { Renderer.default }
 
-    it 'shouldRenderExplain' do # GH-98
+    it 'renders explain' do # GH-98
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS'))
                         .where(user_node.property(:a).is_null)
                         .with(bike_node, user_node)
@@ -18,7 +18,7 @@ module CypherDSL
         .to eq('EXPLAIN MATCH (u:`User`)-[:`OWNS`]->(b:`Bike`) WHERE u.a IS NULL WITH b, u RETURN b')
     end
 
-    it 'shouldRenderProfile' do # GH-99
+    it 'renders profile' do # GH-99
       trip_node = Cypher.node('Trip').named(:tt)
       statement = Cypher.match(user_node.relationship_to(bike_node, 'OWNS'))
                         .where(user_node.property(:a).is_null)
