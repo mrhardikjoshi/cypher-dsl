@@ -144,7 +144,18 @@ module CypherDSL
     end
 
     # `load_csv('file:///x.csv').as(:line)`.
-    def load_csv(uri, with_headers: false) = OngoingLoadCsv.new(self, uri.to_s, with_headers)
+    def load_csv(uri, positional_headers = false, with_headers: positional_headers, periodic_commit: nil) # rubocop:disable Style/OptionalBooleanParameter
+      OngoingLoadCsv.new(self, uri.to_s, with_headers, periodic_commit)
+    end
+
+    # `FIELDTERMINATOR ';'` on the preceding LOAD CSV.
+    def with_field_terminator(terminator)
+      update_last(nil) do |clause|
+        raise ArgumentError, 'FIELDTERMINATOR needs a preceding LOAD CSV.' unless clause.is_a?(Clauses::LoadCsv)
+
+        clause.with(field_terminator: terminator.to_s)
+      end
+    end
 
     # The statement built so far as an `EXISTS { … }` condition.
     def as_condition = ExistsCondition.new(build)
@@ -192,15 +203,17 @@ module CypherDSL
 
     # Intermediate state of `load_csv(uri)` waiting for `as(alias)`.
     class OngoingLoadCsv
-      def initialize(builder, uri, with_headers)
+      def initialize(builder, uri, with_headers, periodic_commit)
         @builder = builder
         @uri = uri
         @with_headers = with_headers
+        @periodic_commit = periodic_commit
         freeze
       end
 
       def as(alias_name)
-        clause = Clauses::LoadCsv.new(uri: @uri, with_headers: @with_headers, alias_name: SymbolicName.of(alias_name))
+        clause = Clauses::LoadCsv.new(uri: @uri, with_headers: @with_headers, alias_name: SymbolicName.of(alias_name),
+                                      field_terminator: nil, periodic_commit: @periodic_commit)
         @builder.send(:append, clause, nil)
       end
     end

@@ -2,7 +2,8 @@
 
 module CypherDSL
   module Clauses
-    # `LOAD CSV [WITH HEADERS] FROM 'uri' AS alias`.
-    LoadCsv = Data.define(:uri, :with_headers, :alias_name)
+    # `[USING PERIODIC COMMIT [rate]] LOAD CSV [WITH HEADERS] FROM 'uri' AS alias [FIELDTERMINATOR ';']`.
+    # `periodic_commit` is nil, `true` or the commit rate.
+    LoadCsv = Data.define(:uri, :with_headers, :alias_name, :field_terminator, :periodic_commit)
   end
 end

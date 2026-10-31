@@ -108,8 +108,15 @@ module CypherDSL
       end
 
       def render_load_csv(clause)
-        headers = clause.with_headers ? ' WITH HEADERS' : ''
-        "LOAD CSV#{headers} FROM #{render_literal(clause.uri)} AS #{render_expression(clause.alias_name)}"
+        parts = []
+        if clause.periodic_commit
+          rate = clause.periodic_commit == true ? '' : " #{clause.periodic_commit}"
+          parts << "USING PERIODIC COMMIT#{rate}"
+        end
+        parts << (clause.with_headers ? 'LOAD CSV WITH HEADERS' : 'LOAD CSV')
+        parts << "FROM #{render_literal(clause.uri)} AS #{render_expression(clause.alias_name)}"
+        parts << "FIELDTERMINATOR #{render_literal(clause.field_terminator)}" if clause.field_terminator
+        parts.join(' ')
       end
 
       def render_call(clause)

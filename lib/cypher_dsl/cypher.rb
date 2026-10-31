@@ -169,7 +169,12 @@ module CypherDSL
     end
 
     # `Cypher.load_csv('file:///x.csv').as(:line)`.
-    def load_csv(uri, with_headers: false) = StatementBuilder.new.load_csv(uri, with_headers:)
+    def load_csv(uri, positional_headers = false, with_headers: positional_headers) # rubocop:disable Style/OptionalBooleanParameter
+      StatementBuilder.new.load_csv(uri, with_headers:)
+    end
+
+    # `Cypher.using_periodic_commit(500).load_csv(uri).as(:line)`.
+    def using_periodic_commit(rate = nil) = UsingPeriodicCommit.new(rate:)
 
     # Imports for an EXISTS / COLLECT subquery: `Cypher.subquery_with(x).collect(statement)`.
     def subquery_with(*imports) = SubqueryWith.new(imports)

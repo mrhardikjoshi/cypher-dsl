@@ -87,6 +87,10 @@ module CypherDSL
     def to_boolean(expression) = function('toBoolean', expression)
     def random_uuid = function('randomUUID')
 
+    # `linenumber()` and `file()`, available inside LOAD CSV.
+    def linenumber = function('linenumber')
+    def file = function('file')
+
     # --- mathematical ----------------------------------------------------
 
     def abs(expression) = function('abs', expression)
