@@ -33,8 +33,18 @@ module CypherDSL
         when Clauses::Unwind
           "UNWIND #{render_expression(clause.expression)} AS #{render_expression(clause.variable)}"
         when Clauses::Finish then 'FINISH'
+        when Clauses::Foreach then render_foreach(clause)
         else raise ArgumentError, "Cannot render clause #{clause.inspect}"
         end
+      end
+
+      # The body of a FOREACH is its own scope: names rendered inside it do not
+      # count as visited outside.
+      def render_foreach(clause)
+        outer_scope = @visited_names.dup
+        body = clause.clauses.map { |inner| render_clause(inner) }.join(' ')
+        @visited_names = outer_scope
+        "FOREACH (#{render_expression(clause.variable)} IN #{render_expression(clause.list)} | #{body})"
       end
 
       def render_match(clause)
@@ -76,13 +86,21 @@ module CypherDSL
       end
 
       def render_projection(keyword, clause, where)
-        items = clause.items.map { |item| render_expression(item) }.join(', ')
+        items = clause.items.map { |item| render_projection_item(item) }.join(', ')
         parts = ["#{keyword} #{'DISTINCT ' if clause.distinct}#{items}"]
         parts << "ORDER BY #{clause.order.items.map { |item| render_sort_item(item) }.join(', ')}" if clause.order
         parts << "SKIP #{render_expression(clause.skip)}" if clause.skip
         parts << "LIMIT #{render_expression(clause.limit)}" if clause.limit
         parts << "WHERE #{render_expression(where)}" if where && !where.is_a?(NoCondition)
         parts.join(' ')
+      end
+
+      # In RETURN/WITH an aliased expression is defined (`expr AS alias`); anywhere
+      # else it is a reference and renders as the alias alone.
+      def render_projection_item(item)
+        return render_expression(item) unless item.is_a?(AliasedExpression)
+
+        "#{render_expression(item.delegate)} AS #{render_expression(item.alias_name)}"
       end
 
       def render_pattern_elements(elements)
@@ -165,12 +183,34 @@ module CypherDSL
         when Literal then render_literal(expression.value)
         when Parameter then "$#{expression.name}"
         when Asterisk then '*'
-        when AliasedExpression
-          "#{render_expression(expression.delegate)} AS #{render_expression(expression.alias_name)}"
+        when AliasedExpression then render_expression(expression.alias_name)
         when FunctionInvocation then render_function_invocation(expression)
         when SortItem then render_sort_item(expression)
+        when CaseExpression then render_case(expression)
+        when UnaryOperation then "#{expression.operator}#{render_expression(expression.expression)}"
+        when ListOperator then render_list_operator(expression)
         else render_container_expression(expression)
         end
+      end
+
+      def render_case(case_expression)
+        parts = ['CASE']
+        parts << render_expression(case_expression.subject) if case_expression.subject
+        case_expression.whens.each do |condition, value|
+          parts << "WHEN #{render_expression(condition)} THEN #{render_expression(value)}"
+        end
+        parts << "ELSE #{render_expression(case_expression.default)}" if case_expression.default
+        parts << 'END'
+        parts.join(' ')
+      end
+
+      def render_list_operator(operator)
+        list = render_expression(operator.list)
+        return "#{list}[#{render_expression(operator.start_index)}]" unless operator.slice
+
+        from = operator.start_index && render_expression(operator.start_index)
+        to = operator.end_index && render_expression(operator.end_index)
+        "#{list}[#{from}..#{to}]"
       end
 
       def render_container_expression(expression)
@@ -196,10 +236,14 @@ module CypherDSL
         when RelationshipPatternCondition then render_pattern_element(expression.pattern)
         when ListPredicate then render_list_predicate(expression)
         when HasLabelCondition then render_labels(expression.node, expression.labels)
-        when Operation
-          "#{render_expression(expression.left)} #{expression.operator} #{render_expression(expression.right)}"
+        when Operation then render_operation(expression)
         else raise ArgumentError, "Cannot render expression #{expression.inspect}"
         end
+      end
+
+      def render_operation(operation)
+        rendered = "#{render_expression(operation.left)} #{operation.operator} #{render_expression(operation.right)}"
+        operation.assignment? ? rendered : "(#{rendered})"
       end
 
       def render_list_predicate(predicate)
@@ -208,18 +252,16 @@ module CypherDSL
       end
 
       def render_map_projection(projection)
-        subject = projection.subject
-        entries = projection.entries.map do |entry|
-          case entry
-          when Asterisk then '.*'
-          when String, Symbol then ".#{Escaper.escape_if_necessary(entry.to_s)}"
-          when Property
-            entry.container == subject ? ".#{render_property(entry).split('.', 2).last}" : render_expression(entry)
-          when AliasedExpression then "#{render_expression(entry.alias_name)}: #{render_expression(entry.delegate)}"
-          else render_expression(entry)
+        entries = projection.entries.map do |kind, *args|
+          case kind
+          when :all then '.*'
+          when :lookup then ".#{Escaper.escape_if_necessary(args.first)}"
+          when :property then ".#{Escaper.escape_if_necessary(args.first.names.first)}"
+          when :pair then "#{Escaper.escape_if_necessary(args.first)}: #{render_expression(args.last)}"
+          else render_expression(args.first)
           end
         end
-        "#{render_expression(subject)}{#{entries.join(', ')}}"
+        "#{render_expression(projection.subject)}{#{entries.join(', ')}}"
       end
 
       def render_pattern_comprehension(comprehension)
@@ -231,8 +273,10 @@ module CypherDSL
       end
 
       def render_property(property)
-        names = property.names.map { |name| Escaper.escape_if_necessary(name) }
-        "#{render_expression(property.container)}.#{names.join('.')}"
+        lookups = property.names.map do |name|
+          name.is_a?(Expression) ? "[#{render_expression(name)}]" : ".#{Escaper.escape_if_necessary(name)}"
+        end
+        "#{render_expression(property.container)}#{lookups.join}"
       end
 
       def render_literal(value)
@@ -249,10 +293,16 @@ module CypherDSL
       end
 
       def render_comparison(comparison)
-        left = render_expression(comparison.left)
+        left = render_operand(comparison.left)
         return "#{left} #{comparison.operator}" if comparison.unary?
 
-        "#{left} #{comparison.operator} #{render_expression(comparison.right)}"
+        "#{left} #{comparison.operator} #{render_operand(comparison.right)}"
+      end
+
+      # A comparison nested inside another comparison is parenthesised: `(1 > 2) = true`.
+      def render_operand(expression)
+        rendered = render_expression(expression)
+        expression.is_a?(Comparison) ? "(#{rendered})" : rendered
       end
 
       def render_compound_condition(condition)

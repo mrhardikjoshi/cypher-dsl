@@ -9,6 +9,9 @@ module CypherDSL
     # An empty builder, as `Statement.builder()` in Java.
     def self.builder = StatementBuilder.new
 
+    # A statement from a list of clause objects, as `Statement.of(clauses)` in Java.
+    def self.of(clauses) = new(clauses)
+
     # `prefix` is `EXPLAIN` or `PROFILE` for the corresponding statement kinds.
     def initialize(clauses, prefix: nil)
       @clauses = clauses.freeze

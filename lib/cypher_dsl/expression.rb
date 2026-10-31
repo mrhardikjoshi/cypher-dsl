@@ -34,6 +34,14 @@ module CypherDSL
     def includes_all(list) = ListPredicate.new('all', :x, Expression.coerce(list), SymbolicName.of(:x).in(self))
     def includes_any(list) = ListPredicate.new('any', :x, Expression.coerce(list), SymbolicName.of(:x).in(self))
 
+    # Arithmetic; rendered in parentheses, e.g. `(a + b)`.
+    def add(other) = Operation.new(self, '+', Expression.coerce(other))
+    def subtract(other) = Operation.new(self, '-', Expression.coerce(other))
+    def multiply(other) = Operation.new(self, '*', Expression.coerce(other))
+    def divide(other) = Operation.new(self, '/', Expression.coerce(other))
+    def remainder(other) = Operation.new(self, '%', Expression.coerce(other))
+    def pow(other) = Operation.new(self, '^', Expression.coerce(other))
+
     # Java short forms.
     alias eq is_equal_to
     alias ne is_not_equal_to

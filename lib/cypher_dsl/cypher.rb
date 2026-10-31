@@ -8,9 +8,12 @@ module CypherDSL
 
     # --- pattern elements ------------------------------------------------
 
-    # A node with one primary label and optional additional labels.
+    # A node with one primary label and optional additional labels; a trailing
+    # map (`Cypher.node('Test', Cypher.map_of(…))`) sets its properties.
     def node(primary_label, *additional_labels)
-      Node.new(labels: [primary_label, *additional_labels].map(&:to_s))
+      properties = additional_labels.pop if [MapExpression, Hash].any? { |type| additional_labels.last.is_a?(type) }
+      node = Node.new(labels: [primary_label, *additional_labels].map(&:to_s))
+      properties ? node.with_properties(properties) : node
     end
 
     # A node without labels, optionally named.
@@ -23,10 +26,11 @@ module CypherDSL
 
     def name(value) = SymbolicName.of(value)
 
-    # `Cypher.property(:n, :name)` → `n.name`; the container may also be an expression.
+    # `Cypher.property(:n, :name)` → `n.name`; the container may also be an expression,
+    # and a name may be an expression for a dynamic lookup (`n[$prop]`).
     def property(container, *names)
       container = SymbolicName.of(container) unless container.is_a?(Expression)
-      Property.new(container, names.map(&:to_s))
+      Property.new(container, names)
     end
 
     def parameter(name) = Parameter.new(name)
@@ -57,7 +61,32 @@ module CypherDSL
     # `[pattern WHERE … | …]`; continue with `where` and `returning`.
     def list_based_on(pattern) = PatternComprehension.new(pattern)
 
+    # --- operations ------------------------------------------------------
+
+    def set(target, value) = Operation.new(target, '=', Expression.coerce(value))
+    def set_label(node, *labels) = LabelOperation.new(node, labels)
+    def mutate(target, expression) = Operation.new(target, '+=', Expression.coerce(expression))
+    def minus(expression) = UnaryOperation.new('-', Expression.coerce(expression))
+    def plus(expression) = UnaryOperation.new('+', Expression.coerce(expression))
+    def value_at(list, index) = ListOperator.value_at(Expression.coerce(list), index)
+
+    def sublist(list, start_index = nil, end_index = nil)
+      ListOperator.sublist(Expression.coerce(list), start_index, end_index)
+    end
+
+    # `CASE … END`; `case_expression(subject)` for the simple form, no argument for the generic one.
+    def case_expression(subject = nil) = CaseExpression.new(subject: subject && Expression.coerce(subject))
+
     # --- sorting and functions --------------------------------------------
+
+    def point(expression) = FunctionInvocation.new('point', [Expression.coerce(expression)])
+    def distance(point1, point2) = function('point.distance', point1, point2)
+    def collect(expression) = function('collect', expression)
+    def labels(node) = FunctionInvocation.new('labels', [node.required_symbolic_name])
+    def element_id(element) = FunctionInvocation.new('elementId', [element.required_symbolic_name])
+
+    # A call of any function with the given arguments, coerced to expressions.
+    def function(name, *arguments) = FunctionInvocation.new(name, arguments.map { |a| Expression.coerce(a) })
 
     def sort(expression) = SortItem.new(Expression.coerce(expression), nil)
 
@@ -77,7 +106,7 @@ module CypherDSL
     def create(*pattern_elements) = StatementBuilder.new.create(*pattern_elements)
     def merge(*pattern_elements) = StatementBuilder.new.merge(*pattern_elements)
     def with(*expressions) = StatementBuilder.new.with(*expressions)
-    def unwind(expression) = StatementBuilder.new.unwind(expression)
+    def unwind(*expressions) = StatementBuilder.new.unwind(*expressions)
     def returning(*expressions) = StatementBuilder.new.returning(*expressions)
     def returning_distinct(*expressions) = StatementBuilder.new.returning_distinct(*expressions)
   end

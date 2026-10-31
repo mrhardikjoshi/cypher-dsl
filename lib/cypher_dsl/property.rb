@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 module CypherDSL
-  # A property lookup such as `n.name` or `n.address.city`.
+  # A property lookup such as `n.name`, `n.address.city`, or the dynamic `n[$key]`.
+  # Names are strings; an expression as a name renders as an index lookup.
   class Property
     include Expression
 
@@ -9,11 +10,13 @@ module CypherDSL
 
     def initialize(container, names)
       @container = container
-      @names = names.map(&:to_s).freeze
+      @names = names.map { |name| name.is_a?(Expression) ? name : name.to_s }.freeze
       raise ArgumentError, 'A property needs at least one name.' if @names.empty?
 
       freeze
     end
+
+    def nested? = names.size > 1
 
     # `n.prop = value`, for use in SET.
     def to(expression) = Operation.new(self, '=', Expression.coerce(expression))

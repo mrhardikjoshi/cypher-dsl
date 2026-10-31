@@ -63,9 +63,11 @@ module CypherDSL
     def limit(amount) = update_last(@mode) { |clause| clause.with(limit: optional_expression(amount)) }
     alias take limit # Arel spelling
 
-    # `unwind(list).as(:item)`; `as` completes the clause.
-    def unwind(expression)
-      OngoingUnwind.new(self, coerce_items([expression]).first)
+    # `unwind(list).as(:item)`; `as` completes the clause. Several arguments, or
+    # an array, form a list literal.
+    def unwind(*expressions)
+      single = expressions.size == 1 && !expressions.first.is_a?(Array)
+      OngoingUnwind.new(self, single ? coerce_items(expressions).first : ListExpression.of(expressions.flatten))
     end
 
     # --- updating --------------------------------------------------------
@@ -100,6 +102,9 @@ module CypherDSL
       append(Clauses::Delete.new(detach: true, expressions: coerce_items(expressions)), nil)
     end
 
+    # `foreach(:i).in(list).apply(clause, …)`.
+    def foreach(variable) = OngoingForeach.new(self, SymbolicName.of(variable))
+
     # --- finishing -------------------------------------------------------
 
     def finish = append(Clauses::Finish.new, nil)
@@ -118,6 +123,23 @@ module CypherDSL
 
       def as(variable)
         @builder.send(:append, Clauses::Unwind.new(expression: @expression, variable: SymbolicName.of(variable)), nil)
+      end
+    end
+
+    # Intermediate states of `foreach(variable)`: `in(list)` then `apply(clauses…)`.
+    class OngoingForeach
+      def initialize(builder, variable, list = nil)
+        @builder = builder
+        @variable = variable
+        @list = list
+        freeze
+      end
+
+      def in(list) = OngoingForeach.new(@builder, @variable, Expression.coerce(list))
+
+      def apply(*clauses)
+        foreach = Clauses::Foreach.new(variable: @variable, list: @list, clauses: clauses.flatten.freeze)
+        @builder.send(:append, foreach, nil)
       end
     end
 

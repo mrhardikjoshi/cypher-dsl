@@ -24,7 +24,7 @@ Metrics/ModuleLength:
 # The renderer is one big dispatch over node types; splitting it by cop limits
 # would only scatter the grammar.
 Metrics/ClassLength:
-  Max: 250
+  Max: 400
 Metrics/MethodLength:
   Max: 20
 Metrics/AbcSize:
@@ -41,8 +41,11 @@ Naming/PredicatePrefix:
 Style/Documentation:
   Enabled: false
 
-# Specs are translated from upstream test classes and named after them.
+# Specs are translated from upstream test classes and named after them; small
+# sibling classes share a file.
 RSpec/DescribeClass:
+  Enabled: false
+RSpec/MultipleDescribes:
   Enabled: false
 
 RSpec/ExampleLength:

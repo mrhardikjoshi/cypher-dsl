@@ -21,6 +21,8 @@ module CypherDSL
     # The map projection `name{…}`.
     def project(*entries) = MapProjection.new(self, entries.flatten)
 
+    def property(*names) = Property.new(self, names)
+
     def ==(other) = other.is_a?(SymbolicName) && other.value == value
     alias eql? ==
     def hash = [self.class, value].hash

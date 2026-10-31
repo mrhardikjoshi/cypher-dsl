@@ -24,6 +24,7 @@ module CypherDSL
     def required_symbolic_name
       symbolic_name or raise ArgumentError, 'This node needs a symbolic name (use `named`) to be referenced.'
     end
+    alias as_expression required_symbolic_name
 
     def property(*names) = Property.new(required_symbolic_name, names)
 
@@ -38,6 +39,9 @@ module CypherDSL
 
     # `id(n)`; deprecated in Neo4j 5 in favour of {#element_id}, kept for parity.
     def internal_id = FunctionInvocation.new('id', [required_symbolic_name])
+
+    # `labels(n)`.
+    def labels_function = FunctionInvocation.new('labels', [required_symbolic_name])
 
     # `elementId(n)`.
     def element_id = FunctionInvocation.new('elementId', [required_symbolic_name])
