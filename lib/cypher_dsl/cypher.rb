@@ -120,8 +120,24 @@ module CypherDSL
     def count_distinct(expression) = FunctionInvocation.new('count', [Expression.coerce(expression)], distinct: true)
     def type(relationship) = FunctionInvocation.new('type', [relationship.required_symbolic_name])
 
-    # `Cypher.call('db.labels')`: a procedure, usable as a function via `as_function`.
-    def call(procedure_name) = StandaloneCall.new(procedure_name)
+    # `Cypher.call('db.labels')` / `Cypher.call('db', 'labels')`: a procedure call; see {StandaloneCall}.
+    def call(*name_parts) = StandaloneCall.new(name_parts)
+
+    # `CALL () { raw cypher }`; continues as a statement builder.
+    def call_raw_cypher(cypher)
+      StatementBuilder.new.send(:append, Clauses::CallSubquery.new(body: RawExpression.new(cypher), imports: []), nil)
+    end
+
+    # Verbatim Cypher, the escape hatch.
+    def raw(cypher) = RawExpression.new(cypher)
+
+    # Static comparison forms, `Cypher.gt(a, b)` etc.
+    def eq(left, right) = Expression.coerce(left).is_equal_to(right)
+    def ne(left, right) = Expression.coerce(left).is_not_equal_to(right)
+    def gt(left, right) = Expression.coerce(left).gt(right)
+    def gte(left, right) = Expression.coerce(left).gte(right)
+    def lt(left, right) = Expression.coerce(left).lt(right)
+    def lte(left, right) = Expression.coerce(left).lte(right)
     def coalesce(*expressions) = FunctionInvocation.new('coalesce', expressions.map { |e| Expression.coerce(e) })
 
     # --- statement builders -----------------------------------------------

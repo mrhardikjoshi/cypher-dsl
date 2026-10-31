@@ -23,8 +23,15 @@ module CypherDSL
       @cypher ||= Renderer.default.render(self).freeze
     end
 
-    # True when the statement ends with RETURN, i.e. produces rows.
-    def result_statement? = clauses.last.is_a?(Clauses::Return)
+    # True when the statement produces rows: it ends with RETURN, or is a
+    # procedure call with YIELD.
+    def result_statement?
+      last = clauses.last
+      last.is_a?(Clauses::Return) || (last.is_a?(Clauses::Call) && !last.yield_items.empty?)
+    end
+
+    # True when the statement is a bare procedure call, with or without YIELD.
+    def procedure_call? = clauses.size == 1 && clauses.first.is_a?(Clauses::Call)
 
     # True when the statement contains no WITH, i.e. has a single query part.
     def single_query? = !multi_part_query?

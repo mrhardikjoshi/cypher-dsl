@@ -54,8 +54,34 @@ module CypherDSL
           "UNWIND #{render_expression(clause.expression)} AS #{render_expression(clause.variable)}"
         when Clauses::Finish then 'FINISH'
         when Clauses::Foreach then render_foreach(clause)
+        when Clauses::Call then render_call(clause)
+        when Clauses::CallSubquery then render_call_subquery(clause)
         else raise ArgumentError, "Cannot render clause #{clause.inspect}"
         end
+      end
+
+      def render_call(clause)
+        name = clause.name_parts.map { |part| Escaper.escape_if_necessary(part) }.join('.')
+        arguments = clause.arguments.map { |argument| render_expression(argument) }.join(', ')
+        parts = ["CALL #{name}(#{arguments})"]
+        yields = clause.yield_items.map { |item| render_projection_item(item) }
+        parts << "YIELD #{yields.join(', ')}" unless yields.empty?
+        parts << "WHERE #{render_expression(clause.where)}" if clause.where && !clause.where.is_a?(NoCondition)
+        parts.join(' ')
+      end
+
+      def render_call_subquery(clause)
+        imports = clause.imports.map { |import| render_expression(import) }.join(', ')
+        body = clause.body.is_a?(RawExpression) ? clause.body.content : render_subquery(clause.body)
+        "CALL (#{imports}) {#{body}}"
+      end
+
+      # A subquery statement rendered in its own scope.
+      def render_subquery(statement)
+        outer_scope = @visited_names.dup
+        rendered = render(statement)
+        @visited_names = outer_scope
+        rendered
       end
 
       # The body of a FOREACH is its own scope: names rendered inside it do not
@@ -221,6 +247,7 @@ module CypherDSL
         when Asterisk then '*'
         when AliasedExpression then render_aliased_reference(expression)
         when NamedPath then render_expression(expression.symbolic_name)
+        when RawExpression then expression.content
         when FunctionInvocation then render_function_invocation(expression)
         when SortItem then render_sort_item(expression)
         when CaseExpression then render_case(expression)

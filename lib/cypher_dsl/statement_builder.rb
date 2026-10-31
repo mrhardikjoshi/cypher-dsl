@@ -105,6 +105,9 @@ module CypherDSL
     # `foreach(:i).in(list).apply(clause, …)`.
     def foreach(variable) = OngoingForeach.new(self, SymbolicName.of(variable))
 
+    # `call('db.labels').with_args(…).yield(…)` inside a query.
+    def call(*name_parts) = StandaloneCall.new(name_parts, builder: self)
+
     # --- finishing -------------------------------------------------------
 
     def finish = append(Clauses::Finish.new, nil)
@@ -157,6 +160,8 @@ module CypherDSL
     end
 
     private
+
+    attr_reader :clauses
 
     def append(clause, mode) = StatementBuilder.new(@clauses + [clause], mode)
 
