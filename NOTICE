@@ -1,0 +1,14 @@
+cypher-dsl (Ruby)
+Copyright (c) 2026 Heinrich Klobuczek and contributors
+
+This project is a Ruby implementation of the design of Neo4j's Cypher-DSL for
+Java (https://github.com/neo4j/cypher-dsl), Copyright (c) 2019-2026 "Neo4j,"
+Neo4j Sweden AB, licensed under the Apache License, Version 2.0.
+
+The specifications under spec/ are translated from the Cypher-DSL test suite and
+are therefore a derivative work of that Apache-2.0 licensed code. A copy of the
+Apache License, Version 2.0 is available at
+http://www.apache.org/licenses/LICENSE-2.0.
+
+The Ruby source under lib/ is original work licensed under the MIT License (see
+LICENSE.txt).
