@@ -45,11 +45,11 @@ module CypherDSL
         raise ArgumentError, 'Cannot project nested properties!' if entry.nested?
 
         [:property, entry]
-      when AliasedExpression then [:pair, entry.alias_name.value, entry.delegate]
+      when AliasedExpression then [:pair, entry.alias_name.value, entry]
       when SymbolicName, Node, Relationship then [:expression, entry]
       else
-        raise ArgumentError, 
-"#{entry.inspect} of type #{entry.class} cannot be used with an implicit name as map entry."
+        raise ArgumentError,
+              "#{entry.inspect} of type #{entry.class} cannot be used with an implicit name as map entry."
       end
     end
 

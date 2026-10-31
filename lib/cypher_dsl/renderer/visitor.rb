@@ -9,6 +9,7 @@ module CypherDSL
       def initialize(configuration)
         @configuration = configuration
         @visited_names = Set.new
+        @defined_aliases = Set.new
         @generated_names = {}.compare_by_identity
       end
 
@@ -23,6 +24,7 @@ module CypherDSL
       def render_union(union)
         union.statements.map do |statement|
           @visited_names = Set.new
+          @defined_aliases = Set.new
           render(statement)
         end.join(union.all ? ' UNION ALL ' : ' UNION ')
       end
@@ -82,8 +84,8 @@ module CypherDSL
       end
 
       def render_delete(clause)
-        "#{'DETACH ' if clause.detach}DELETE #{clause.expressions.map { |expression|
- render_expression(expression) }.join(', ')}"
+        expressions = clause.expressions.map { |expression| render_expression(expression) }
+        "#{'DETACH ' if clause.detach}DELETE #{expressions.join(', ')}"
       end
 
       # WITH ends a query part: only the names it projects stay in scope, so a
@@ -114,12 +116,24 @@ module CypherDSL
         parts.join(' ')
       end
 
-      # In RETURN/WITH an aliased expression is defined (`expr AS alias`); anywhere
-      # else it is a reference and renders as the alias alone.
+      # In RETURN/WITH an aliased expression is defined once (`expr AS alias`);
+      # afterwards, and anywhere else, it is a reference and renders as the alias.
       def render_projection_item(item)
         return render_expression(item) unless item.is_a?(AliasedExpression)
 
-        "#{render_expression(item.delegate)} AS #{render_expression(item.alias_name)}"
+        alias_name = resolve_name(item.alias_name)
+        return Escaper.escape_if_necessary(alias_name) if @defined_aliases.include?(alias_name)
+
+        rendered = "#{render_expression(item.delegate)} AS #{render_expression(item.alias_name)}"
+        @defined_aliases << alias_name
+        rendered
+      end
+
+      def render_aliased_reference(item)
+        alias_name = resolve_name(item.alias_name)
+        return Escaper.escape_if_necessary(alias_name) if @defined_aliases.include?(alias_name)
+
+        render_expression(item.delegate)
       end
 
       def render_pattern_elements(elements)
@@ -144,6 +158,7 @@ module CypherDSL
         when Relationship
           render_node(element.left) + render_relationship_details(element) + render_node(element.right)
         when RelationshipChain then render_chain(element)
+        when NamedPath then "#{render_expression(element.symbolic_name)} = #{render_pattern_element(element.pattern)}"
         else raise ArgumentError, "Cannot render pattern element #{element.inspect}"
         end
       end
@@ -204,7 +219,8 @@ module CypherDSL
         when Literal then render_literal(expression.value)
         when Parameter then "$#{expression.name}"
         when Asterisk then '*'
-        when AliasedExpression then render_expression(expression.alias_name)
+        when AliasedExpression then render_aliased_reference(expression)
+        when NamedPath then render_expression(expression.symbolic_name)
         when FunctionInvocation then render_function_invocation(expression)
         when SortItem then render_sort_item(expression)
         when CaseExpression then render_case(expression)
@@ -255,6 +271,7 @@ module CypherDSL
         when Comparison then render_comparison(expression)
         when CompoundCondition then render_compound_condition(expression)
         when ConstantCondition then expression.value.to_s
+        when ExpressionCondition then render_expression(expression.expression)
         when RelationshipPatternCondition then render_pattern_element(expression.pattern)
         when ListPredicate then render_list_predicate(expression)
         when HasLabelCondition then render_labels(expression.node, expression.labels)
@@ -326,8 +343,8 @@ module CypherDSL
       end
 
       def render_map(map)
-        "{#{map.entries.map { |key, value|
- "#{Escaper.escape_if_necessary(key)}: #{render_expression(value)}" }.join(', ')}}"
+        entries = map.entries.map { |key, value| "#{Escaper.escape_if_necessary(key)}: #{render_expression(value)}" }
+        "{#{entries.join(', ')}}"
       end
 
       def render_comparison(comparison)

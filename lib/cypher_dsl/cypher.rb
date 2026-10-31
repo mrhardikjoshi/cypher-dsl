@@ -64,6 +64,19 @@ module CypherDSL
     # `[variable IN list WHERE … | …]`; continue with `in`, `where` and `returning`.
     def list_with(variable) = ListComprehension.new(variable)
 
+    # `Cypher.path(:p).defined_by(pattern)` for `MATCH p = pattern`; `.get` for the bare name.
+    def path(name) = NamedPath::Ongoing.new(SymbolicName.of(name))
+
+    # List predicates: `Cypher.all(:x).in(list).where(condition)`.
+    def all(variable) = ListPredicate::Ongoing.new('all', variable)
+    def any(variable) = ListPredicate::Ongoing.new('any', variable)
+    def none(variable) = ListPredicate::Ongoing.new('none', variable)
+    def single(variable) = ListPredicate::Ongoing.new('single', variable)
+
+    def sub_list_until(list, end_index) = ListOperator.sublist(Expression.coerce(list), nil, end_index)
+    def sub_list_from(list, start_index) = ListOperator.sublist(Expression.coerce(list), start_index, nil)
+    def sub_list(list, start_index = nil, end_index = nil) = sublist(list, start_index, end_index)
+
     def range(start_value, end_value, step = nil) = function('range', *[start_value, end_value, step].compact)
 
     # --- operations ------------------------------------------------------
@@ -87,6 +100,13 @@ module CypherDSL
     def point(expression) = FunctionInvocation.new('point', [Expression.coerce(expression)])
     def distance(point1, point2) = function('point.distance', point1, point2)
     def collect(expression) = function('collect', expression)
+    def sum(expression) = function('sum', expression)
+    def avg(expression) = function('avg', expression)
+    def min(expression) = function('min', expression)
+    def max(expression) = function('max', expression)
+    def nodes(path) = function('nodes', path.required_symbolic_name)
+    def relationships(path) = function('relationships', path.required_symbolic_name)
+    def length(path) = function('length', path.required_symbolic_name)
     def labels(node) = FunctionInvocation.new('labels', [node.required_symbolic_name])
     def element_id(element) = FunctionInvocation.new('elementId', [element.required_symbolic_name])
 

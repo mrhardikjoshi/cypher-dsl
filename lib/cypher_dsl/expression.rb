@@ -11,6 +11,9 @@ module CypherDSL
 
     def as(alias_name) = AliasedExpression.new(self, alias_name)
 
+    # This expression as a condition, e.g. a CASE expression in WHERE.
+    def as_condition = ExpressionCondition.new(self)
+
     def ascending = SortItem.new(self, :asc)
     def descending = SortItem.new(self, :desc)
 
