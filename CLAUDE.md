@@ -4,7 +4,7 @@
 
 A Ruby implementation of the *design* of Neo4j's Cypher-DSL for Java, not a
 line-by-line port. The reference source is a full clone of the Java project at
-`~/projects/cypher-dsl` (module `neo4j-cypher-dsl`, package
+`~/projects/neo4j-cypher-dsl` (module `neo4j-cypher-dsl`, package
 `org.neo4j.cypherdsl.core`). Read it for semantics; write idiomatic Ruby.
 
 ## Method: tests first, translated from upstream
