@@ -20,7 +20,7 @@ Metrics/BlockLength:
 # The renderer is one big dispatch over node types; splitting it by cop limits
 # would only scatter the grammar.
 Metrics/ClassLength:
-  Max: 400
+  Max: 500
 # The Cypher module is the facade of factory methods, one line each.
 Metrics/ModuleLength:
   Max: 250

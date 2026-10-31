@@ -5,6 +5,8 @@ module CypherDSL
     # Backtick escaping of schema names and identifiers.
     module Escaper
       IDENTIFIER = /\A[\p{L}_][\p{L}\p{N}_]*\z/
+      # Parameter names may be dotted (`$point.distance`) without escaping.
+      PARAMETER_NAME = /\A[\p{L}_][\p{L}\p{N}_.]*\z/
       ESCAPED = /\A`.*`\z/m
 
       module_function
@@ -19,6 +21,10 @@ module CypherDSL
       # Escapes only names that are not plain identifiers.
       def escape_if_necessary(name)
         IDENTIFIER.match?(name) ? name : escape(name)
+      end
+
+      def escape_parameter_name(name)
+        PARAMETER_NAME.match?(name) ? name : escape(name)
       end
     end
   end

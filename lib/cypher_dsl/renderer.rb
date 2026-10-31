@@ -16,5 +16,13 @@ module CypherDSL
     end
 
     def render(statement) = Visitor.new(configuration).render(statement)
+
+    # The statement's parameters as a {StatementCatalog}; raises
+    # {ConflictingParametersException} when a name is bound inconsistently.
+    def catalog(statement)
+      visitor = Visitor.new(configuration)
+      visitor.render(statement)
+      visitor.catalog
+    end
   end
 end

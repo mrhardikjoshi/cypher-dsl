@@ -11,7 +11,12 @@ module CypherDSL
         @visited_names = Set.new
         @defined_aliases = Set.new
         @generated_names = {}.compare_by_identity
+        @parameter_uses = {}
+        @anonymous_parameters = []
       end
+
+      # The parameters seen while rendering; see {Renderer#catalog}.
+      def catalog = StatementCatalog.from_uses(@parameter_uses)
 
       def render(statement)
         return render_union(statement) if statement.is_a?(UnionQuery)
@@ -311,7 +316,7 @@ module CypherDSL
         when Node, Relationship then render_expression(expression.required_symbolic_name)
         when Property then render_property(expression)
         when Literal then render_literal(expression.value)
-        when Parameter then "$#{expression.name}"
+        when Parameter then render_parameter(expression)
         when Asterisk then '*'
         when AliasedExpression then render_aliased_reference(expression)
         when NamedPath then render_expression(expression.symbolic_name)
@@ -427,6 +432,23 @@ module CypherDSL
         parts << "WHERE #{render_expression(comprehension.where_condition)}" if comprehension.where_condition
         parts << "| #{render_expression(comprehension.projection)}" if comprehension.projection
         "[#{parts.join(' ')}]"
+      end
+
+      # Records every use for the catalog; anonymous parameters get `pcdslNN`,
+      # shared between anonymous parameters with equal values.
+      def render_parameter(parameter)
+        name = parameter.anonymous? ? anonymous_parameter_name(parameter) : parameter.name
+        (@parameter_uses[name] ||= []) << parameter.value
+        "$#{Escaper.escape_parameter_name(name)}"
+      end
+
+      def anonymous_parameter_name(parameter)
+        index = @anonymous_parameters.index(parameter)
+        unless index
+          @anonymous_parameters << parameter
+          index = @anonymous_parameters.size - 1
+        end
+        format('pcdsl%02d', index + 1)
       end
 
       def render_property(property)

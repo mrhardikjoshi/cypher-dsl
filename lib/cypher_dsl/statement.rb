@@ -23,6 +23,18 @@ module CypherDSL
       @cypher ||= Renderer.default.render(self).freeze
     end
 
+    # Parameter names and bound values; raises {ConflictingParametersException}
+    # when a name is bound inconsistently. Memoised, like `cypher`.
+    def catalog
+      @catalog ||= Renderer.default.catalog(self)
+    end
+
+    # `name => value` for every parameter that carries a value.
+    def parameters = catalog.parameters
+
+    # Every parameter name used, bound or not.
+    def parameter_names = catalog.parameter_names
+
     # True when the statement produces rows: it ends with RETURN, or is a
     # procedure call with YIELD.
     def result_statement?

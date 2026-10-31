@@ -33,7 +33,11 @@ module CypherDSL
       Property.new(container, names)
     end
 
-    def parameter(name) = Parameter.new(name)
+    # `$name`, optionally with its value; see {Parameter}.
+    def parameter(name, value = Parameter::NO_VALUE) = Parameter.new(name, value)
+
+    # A parameter named by the renderer (`$pcdsl01`, …), carrying its value.
+    def anon_parameter(value) = Parameter.anonymous(value)
 
     # --- literals --------------------------------------------------------
 
