@@ -12,6 +12,7 @@ module CypherDSL
       case value
       when Expression then value
       when Hash then MapExpression.of(value)
+      when Array then ListExpression.of(value)
       else new(value)
       end
     end

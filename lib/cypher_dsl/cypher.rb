@@ -41,8 +41,21 @@ module CypherDSL
     def literal_null = Literal::NULL
 
     def map_of(*keys_and_values) = MapExpression.of(*keys_and_values)
+    def list_of(*expressions) = ListExpression.of(*expressions)
 
     def asterisk = Asterisk::INSTANCE
+
+    # --- conditions ------------------------------------------------------
+
+    def is_true = ConstantCondition::TRUE
+    def is_false = ConstantCondition::FALSE
+    def no_condition = NoCondition::INSTANCE
+    def not(condition_or_pattern) = Condition.coerce(condition_or_pattern).not
+    def includes_all(list_expression, list) = Expression.coerce(list_expression).includes_all(list)
+    def includes_any(list_expression, list) = Expression.coerce(list_expression).includes_any(list)
+
+    # `[pattern WHERE … | …]`; continue with `where` and `returning`.
+    def list_based_on(pattern) = PatternComprehension.new(pattern)
 
     # --- sorting and functions --------------------------------------------
 
@@ -50,6 +63,9 @@ module CypherDSL
 
     def size(expression_or_pattern) = FunctionInvocation.new('size', [expression_or_pattern])
     def count(expression) = FunctionInvocation.new('count', [Expression.coerce(expression)])
+    def count_distinct(expression) = FunctionInvocation.new('count', [Expression.coerce(expression)], distinct: true)
+    def type(relationship) = FunctionInvocation.new('type', [relationship.required_symbolic_name])
+    def coalesce(*expressions) = FunctionInvocation.new('coalesce', expressions.map { |e| Expression.coerce(e) })
 
     # --- statement builders -----------------------------------------------
 

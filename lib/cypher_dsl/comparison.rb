@@ -14,5 +14,14 @@ module CypherDSL
     end
 
     def unary? = right.nil?
+
+    # Negating a null check flips it instead of wrapping it in NOT.
+    def not
+      case operator
+      when 'IS NULL' then Comparison.new(left, 'IS NOT NULL', nil)
+      when 'IS NOT NULL' then Comparison.new(left, 'IS NULL', nil)
+      else super
+      end
+    end
   end
 end

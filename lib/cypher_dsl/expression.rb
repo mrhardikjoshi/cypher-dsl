@@ -26,8 +26,24 @@ module CypherDSL
     def contains(other) = Comparison.new(self, 'CONTAINS', Expression.coerce(other))
     def is_null = Comparison.new(self, 'IS NULL', nil)
     def is_not_null = Comparison.new(self, 'IS NOT NULL', nil)
+    def is_true = Comparison.new(self, '=', Literal::TRUE)
+    def is_false = Comparison.new(self, '=', Literal::FALSE)
+    def in(haystack) = Comparison.new(self, 'IN', Expression.coerce(haystack))
 
+    # `all(x IN list WHERE x IN self)` / `any(…)`: does this list contain all / any of the elements?
+    def includes_all(list) = ListPredicate.new('all', :x, Expression.coerce(list), SymbolicName.of(:x).in(self))
+    def includes_any(list) = ListPredicate.new('any', :x, Expression.coerce(list), SymbolicName.of(:x).in(self))
+
+    # Java short forms.
     alias eq is_equal_to
     alias ne is_not_equal_to
+
+    # Arel spellings, each mapping to exactly one of the above.
+    alias not_eq is_not_equal_to
+    alias gteq gte
+    alias lteq lte
+    alias asc ascending
+    alias desc descending
+    def not_in(haystack) = self.in(haystack).not
   end
 end

@@ -24,7 +24,7 @@ module CypherDSL
 
     def optional_match(*pattern_elements) = match(true, *pattern_elements)
 
-    def where(condition) = update_last(:condition) { |clause| clause.with(where: condition) }
+    def where(condition) = update_last(:condition) { |clause| clause.with(where: Condition.coerce(condition)) }
 
     def and(argument)
       case @mode
@@ -35,6 +35,7 @@ module CypherDSL
     end
 
     def or(condition) = update_last(:condition) { |clause| clause.with(where: clause.where.or(condition)) }
+    def xor(condition) = update_last(:condition) { |clause| clause.with(where: clause.where.xor(condition)) }
 
     # --- projecting ------------------------------------------------------
 
@@ -60,6 +61,7 @@ module CypherDSL
 
     def skip(amount) = update_last(@mode) { |clause| clause.with(skip: optional_expression(amount)) }
     def limit(amount) = update_last(@mode) { |clause| clause.with(limit: optional_expression(amount)) }
+    alias take limit # Arel spelling
 
     # `unwind(list).as(:item)`; `as` completes the clause.
     def unwind(expression)

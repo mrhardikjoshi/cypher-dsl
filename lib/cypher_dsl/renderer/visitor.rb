@@ -69,7 +69,7 @@ module CypherDSL
         parts << "ORDER BY #{clause.order.items.map { |item| render_sort_item(item) }.join(', ')}" if clause.order
         parts << "SKIP #{render_expression(clause.skip)}" if clause.skip
         parts << "LIMIT #{render_expression(clause.limit)}" if clause.limit
-        parts << "WHERE #{render_expression(where)}" if where
+        parts << "WHERE #{render_expression(where)}" if where && !where.is_a?(NoCondition)
         parts.join(' ')
       end
 
@@ -78,7 +78,9 @@ module CypherDSL
       end
 
       def render_where(condition)
-        condition && " WHERE #{render_expression(condition)}"
+        return nil if condition.nil? || condition.is_a?(NoCondition)
+
+        " WHERE #{render_expression(condition)}"
       end
 
       def render_sort_item(item)
@@ -150,6 +152,8 @@ module CypherDSL
         when Property then render_property(expression)
         when Literal then render_literal(expression.value)
         when MapExpression then render_map(expression)
+        when ListExpression then "[#{expression.elements.map { |element| render_expression(element) }.join(', ')}]"
+        when PatternComprehension then render_pattern_comprehension(expression)
         when Parameter then "$#{expression.name}"
         when Asterisk then '*'
         when AliasedExpression
@@ -164,12 +168,28 @@ module CypherDSL
         case expression
         when Comparison then render_comparison(expression)
         when CompoundCondition then render_compound_condition(expression)
+        when ConstantCondition then expression.value.to_s
+        when RelationshipPatternCondition then render_pattern_element(expression.pattern)
+        when ListPredicate then render_list_predicate(expression)
         when HasLabelCondition
           "#{render_expression(expression.node)}#{expression.labels.map { |label| ":#{escape_schema_name(label)}" }.join}"
         when Operation
           "#{render_expression(expression.left)} #{expression.operator} #{render_expression(expression.right)}"
         else raise ArgumentError, "Cannot render expression #{expression.inspect}"
         end
+      end
+
+      def render_list_predicate(predicate)
+        "#{predicate.predicate}(#{render_expression(predicate.variable)} IN #{render_expression(predicate.list)} " \
+          "WHERE #{render_expression(predicate.condition)})"
+      end
+
+      def render_pattern_comprehension(comprehension)
+        parts = [render_pattern_element(comprehension.pattern)]
+        parts << "WHERE #{render_expression(comprehension.where_condition)}" if comprehension.where_condition
+        projection = comprehension.projection.map { |expression| render_expression(expression) }
+        parts << "| #{projection.size == 1 ? projection.first : "[#{projection.join(', ')}]"}"
+        "[#{parts.join(' ')}]"
       end
 
       def render_property(property)
@@ -182,7 +202,6 @@ module CypherDSL
         when String then "'#{value.gsub('\\') { '\\\\' }.gsub("'") { "\\'" }}'"
         when nil then 'NULL'
         when true, false, Numeric then value.to_s
-        when Array then "[#{value.map { |element| render_expression(Expression.coerce(element)) }.join(', ')}]"
         else raise ArgumentError, "Cannot render literal #{value.inspect}"
         end
       end
@@ -199,7 +218,11 @@ module CypherDSL
       end
 
       def render_compound_condition(condition)
-        return "NOT (#{render_expression(condition.conditions.first)})" if condition.operator == 'NOT'
+        if condition.negation?
+          negated = condition.conditions.first
+          rendered = render_expression(negated)
+          return negated.is_a?(RelationshipPatternCondition) ? "NOT #{rendered}" : "NOT (#{rendered})"
+        end
 
         "(#{condition.conditions.map { |inner| render_expression(inner) }.join(" #{condition.operator} ")})"
       end
@@ -208,7 +231,7 @@ module CypherDSL
         arguments = invocation.arguments.map do |argument|
           pattern_element?(argument) ? render_pattern_element(argument) : render_expression(argument)
         end
-        "#{invocation.function_name}(#{arguments.join(', ')})"
+        "#{invocation.function_name}(#{'DISTINCT ' if invocation.distinct}#{arguments.join(', ')})"
       end
 
       def pattern_element?(argument)
