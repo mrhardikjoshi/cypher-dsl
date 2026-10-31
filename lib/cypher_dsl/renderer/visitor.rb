@@ -14,14 +14,21 @@ module CypherDSL
         @configuration = configuration
         @visited_names = Set.new
         @defined_aliases = {}
-        @generated_names = {}.compare_by_identity
+        @names = if configuration.use_generated_names?
+                   GeneratedNameResolver.new(configuration.generated_names)
+                 else
+                   NameResolver.new
+                 end
+        @renamed_parameters = {}
         @parameter_uses = {}
+        @depth = 0
+        @in_last_return = false
         @anonymous_parameters = []
         @level = 0
       end
 
       # The parameters seen while rendering; see {Renderer#catalog}.
-      def catalog = StatementCatalog.from_uses(@parameter_uses)
+      def catalog = StatementCatalog.from_uses(@parameter_uses, @renamed_parameters)
 
       # A part of a statement on its own.
       def render_fragment(fragment)
@@ -34,11 +41,16 @@ module CypherDSL
       def render(statement)
         return render_union(statement) if statement.is_a?(UnionQuery)
 
+        @depth += 1
+        last = statement.clauses.size - 1
         rendered = statement.clauses.each_with_index.map do |clause, index|
           @first_clause = index.zero? && @visited_names.empty?
+          @in_last_return = @depth == 1 && index == last && clause.is_a?(Clauses::Return)
           render_clause(clause)
         end.join(break_line)
         statement.prefix ? "#{statement.prefix} #{rendered}" : rendered
+      ensure
+        @depth -= 1
       end
 
       private
@@ -82,12 +94,8 @@ module CypherDSL
         end.join("#{keyword}#{break_line}")
       end
 
-      # Unresolved symbolic names get a generated, render-stable name.
-      def resolve_name(symbolic_name)
-        return symbolic_name.value if symbolic_name.resolved?
-
-        @generated_names[symbolic_name] ||= "#{symbolic_name.hint}#{format('%03d', @generated_names.size + 1)}"
-      end
+      # The rendered name of a symbolic name; see {NameResolver}.
+      def resolve_name(symbolic_name, in_entity: false) = @names.resolve(symbolic_name, in_entity:)
 
       private
 
@@ -154,9 +162,19 @@ module CypherDSL
           opening = "CALL (#{list}) {"
         end
         rendered = block(opening, '}', inline_padding: '') do
-          [prefix, render_in_scope(body, scope_of(imports))].compact.join(break_line)
+          [prefix, render_in_scope(body, scope_of(imports), imports)].compact.join(break_line)
         end
         "#{rendered}#{suffix}"
+      end
+
+      # What a subquery hands back to the outer scope: the items of its final RETURN.
+      def exports_of(body)
+        return [] unless body.is_a?(Statement) && body.clauses.last.is_a?(Clauses::Return)
+
+        items = body.clauses.last.items
+        return :all if items.any?(Asterisk)
+
+        items.select { |item| [SymbolicName, AliasedExpression, Node, Relationship].any? { |type| item.is_a?(type) } }
       end
 
       # An aliased import (`nodes AS x`) imports the name and renames it with a
@@ -193,31 +211,30 @@ module CypherDSL
         imports.filter_map { |import| import.is_a?(SymbolicName) ? resolve_name(import) : nil }.to_set
       end
 
-      def render_in_scope(body, scope)
+      # A CALL subquery body: only the imports are visible inside, the final RETURN is exported.
+      def render_in_scope(body, scope, imports)
         return body.content if body.is_a?(RawExpression)
 
         outer_scope = @visited_names
         @visited_names = scope
+        @names.enter_scope(imports.any?(Asterisk) ? :all : imports)
         rendered = render(body)
+        @names.leave_scope(exports_of(body))
         @visited_names = outer_scope
         rendered
       end
 
       # A subquery statement rendered within the current scope (EXISTS / COLLECT).
       def render_subquery(statement, imports = [])
-        outer_scope = @visited_names.dup
         prefix = imports.empty? ? '' : "WITH #{imports.map { |import| render_projection_item(import) }.join(', ')} "
-        rendered = render(statement)
-        @visited_names = outer_scope
+        rendered = render_in_own_scope { render(statement) }
         "#{prefix}#{rendered}"
       end
 
       # The body of a FOREACH is its own scope: names rendered inside it do not
       # count as visited outside.
       def render_foreach(clause)
-        outer_scope = @visited_names.dup
-        body = clause.clauses.map { |inner| render_clause(inner) }.join(' ')
-        @visited_names = outer_scope
+        body = render_in_own_scope { clause.clauses.map { |inner| render_clause(inner) }.join(' ') }
         "FOREACH (#{render_expression(clause.variable)} IN #{render_expression(clause.list)} | #{body})"
       end
 
@@ -287,7 +304,7 @@ module CypherDSL
       def exported_names(items)
         items.filter_map do |item|
           case item
-          when AliasedExpression then resolve_name(item.alias_name)
+          when AliasedExpression then @names.resolve_alias(item, in_last_return: @in_last_return)
           when SymbolicName then resolve_name(item)
           when Node, Relationship then item.symbolic_name && resolve_name(item.symbolic_name)
           end
@@ -308,16 +325,17 @@ module CypherDSL
       def render_projection_item(item)
         return render_expression(item) unless item.is_a?(AliasedExpression)
 
-        alias_name = resolve_name(item.alias_name)
+        alias_name = @names.resolve_alias(item, in_last_return: @in_last_return)
         return Escaper.escape_if_necessary(alias_name) if alias_defined?(item, alias_name)
 
-        rendered = "#{render_expression(item.delegate)} AS #{render_expression(item.alias_name)}"
+        delegate = render_expression(item.delegate)
+        alias_name = @names.resolve_alias(item, define: true, in_last_return: @in_last_return)
         @defined_aliases[alias_name] = item.delegate
-        rendered
+        "#{delegate} AS #{Escaper.escape_if_necessary(alias_name)}"
       end
 
       def render_aliased_reference(item)
-        alias_name = resolve_name(item.alias_name)
+        alias_name = @names.resolve_alias(item, in_last_return: @in_last_return)
         return Escaper.escape_if_necessary(alias_name) if alias_defined?(item, alias_name)
 
         render_expression(item.delegate)

@@ -121,8 +121,10 @@ module CypherDSL
         # Renders with the current scope, discarding names introduced inside.
         def render_in_own_scope
           outer_scope = @visited_names.dup
+          @names.enter_scope(:all)
           yield
         ensure
+          @names.leave_scope([])
           @visited_names = outer_scope
         end
 
@@ -168,13 +170,13 @@ module CypherDSL
         # A pattern comprehension is its own scope: names it introduces do not
         # count as visited outside of it.
         def render_pattern_comprehension(comprehension)
-          outer_scope = @visited_names.dup
-          parts = [render_pattern_element(comprehension.pattern)]
-          parts << "WHERE #{render_expression(comprehension.where_condition)}" if comprehension.where_condition
-          projection = comprehension.projection.map { |expression| render_expression(expression) }
-          parts << "| #{projection.size == 1 ? projection.first : "[#{projection.join(', ')}]"}"
-          @visited_names = outer_scope
-          "[#{parts.join(' ')}]"
+          render_in_own_scope do
+            parts = [render_pattern_element(comprehension.pattern)]
+            parts << "WHERE #{render_expression(comprehension.where_condition)}" if comprehension.where_condition
+            projection = comprehension.projection.map { |expression| render_expression(expression) }
+            parts << "| #{projection.size == 1 ? projection.first : "[#{projection.join(', ')}]"}"
+            "[#{parts.join(' ')}]"
+          end
         end
 
         def render_list_comprehension(comprehension)
@@ -187,7 +189,8 @@ module CypherDSL
         # Records every use for the catalog; anonymous parameters get `pcdslNN`,
         # shared between anonymous parameters with equal values.
         def render_parameter(parameter)
-          name = parameter.anonymous? ? anonymous_parameter_name(parameter) : parameter.name
+          name = parameter.anonymous? ? anonymous_parameter_name(parameter) : @names.resolve_parameter(parameter)
+          @renamed_parameters[parameter.name] = name if !parameter.anonymous? && name != parameter.name
           (@parameter_uses[name] ||= []) << parameter.value
           "$#{Escaper.escape_parameter_name(name)}"
         end
@@ -269,7 +272,11 @@ module CypherDSL
         end
 
         def render_function_invocation(invocation)
-          arguments = invocation.arguments.map { |argument| render_expression(argument) }
+          arguments = invocation.arguments.map do |argument|
+            rendered = render_expression(argument)
+            # Pretty printed, a map argument keeps a space after the parenthesis: `collect( {`.
+            pretty? && rendered.start_with?('{') ? " #{rendered}" : rendered
+          end
           name = invocation.function_name
           legacy = @configuration.legacy_functions?
           # Neo4j 4 has no elementId(); the closest equivalent is the stringified internal id.

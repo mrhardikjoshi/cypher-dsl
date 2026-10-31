@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Planner hints: `using_index`, `using_index_seek`, `using_scan`, `using_join_on` (HintsIT).
+- LOAD CSV: `with_field_terminator`, `Cypher.using_periodic_commit`, `linenumber()`, `file()`.
+- All Java dialects including `NEO4J_5_26`, `NEO4J_5_CYPHER_5`, `NEO4J_5_CYPHER_25` with their
+  `CYPHER 5` / `CYPHER 25` prefixes; `NEO4J_5_DEFAULT_CYPHER` is the default.
+- Label expressions (`Labels.exactly/all/any`, `and`, `or`, `negate`, `conjunction_with`),
+  dynamic labels `n:$($labels)` on Neo4j 5.26+, `disable_dynamic_labels`.
+- Vector `SEARCH` clauses (`Cypher.search`) and `Cypher.vector` literals.
+- Generated names (`with_generated_names`) and `StatementCatalog#renamed_parameters`.
+- `Cypher.exists(property)` renders `exists()` on Neo4j 4 and `IS NOT NULL` afterwards;
+  `shortestPath()` / `allShortestPaths()` on Neo4j 4 and 5.
+
+### Changed
+
+- The default dialect is `NEO4J_5_DEFAULT_CYPHER` (was `NEO4J_5_23`); the only difference
+  is that dynamic label expressions render as such.
+
 ## [0.1.0.alpha.1] - 2026-10-31
 
 First pre-release, reserving the gem name. A Ruby reimplementation of the design of

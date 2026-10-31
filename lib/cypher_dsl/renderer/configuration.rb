@@ -11,13 +11,20 @@ module CypherDSL
     # - `indent_size` / `indent_style` (`:space` or `:tab`): the indentation unit.
     # - `disable_dynamic_labels`: render label expressions statically even on dialects
     #   that support `n:$($labels)`.
+    # - `generated_names`: rewrite names while rendering (`v0`, `v1`, … and `p0`, `p1`, …);
+    #   `true` for all of {GENERATED_NAMES}, or a subset of those flags.
     class Configuration
-      attr_reader :always_escape_names, :dialect, :pretty_print, :indent_size, :indent_style, :disable_dynamic_labels
+      # The Java `GeneratedNames` enum: which names get rewritten. `reuse_aliases` makes an alias
+      # that is defined again reuse its generated name instead of getting a new one.
+      GENERATED_NAMES = %i[entity_names parameter_names all_aliases internal_aliases_only reuse_aliases].freeze
+
+      attr_reader :always_escape_names, :dialect, :pretty_print, :indent_size, :indent_style, :disable_dynamic_labels,
+                  :generated_names
 
       # `always_escape_names` defaults to true, except when pretty printing, where
       # names are escaped only when necessary (as upstream does).
       def initialize(always_escape_names: nil, dialect: Dialect::NEO4J_5_DEFAULT_CYPHER, pretty_print: false,
-                     indent_size: 2, indent_style: :space, disable_dynamic_labels: false)
+                     indent_size: 2, indent_style: :space, disable_dynamic_labels: false, generated_names: false)
         raise ArgumentError, "Unknown dialect #{dialect.inspect}" unless Dialect::ALL.include?(dialect)
         raise ArgumentError, "Unknown indent style #{indent_style.inspect}" unless %i[space tab].include?(indent_style)
 
@@ -27,10 +34,14 @@ module CypherDSL
         @indent_size = indent_size
         @indent_style = indent_style
         @disable_dynamic_labels = disable_dynamic_labels
+        @generated_names = generated_name_flags(generated_names)
         freeze
       end
 
-      DEFAULT = new
+      def use_generated_names? = !generated_names.empty?
+
+      # The default configuration, as used by `Statement#cypher`.
+      def self.default = @default ||= new
 
       # Mirrors `Configuration.newConfig()…build()`.
       def self.new_config = Builder.new
@@ -71,6 +82,9 @@ module CypherDSL
           option(:disable_dynamic_labels, value)
         end
 
+        # `true`, `false` or a list of {Configuration::GENERATED_NAMES} flags.
+        def with_generated_names(value) = option(:generated_names, value)
+
         def build = Configuration.new(**@options)
 
         private
@@ -79,6 +93,20 @@ module CypherDSL
           @options[name] = value
           self
         end
+      end
+
+      private
+
+      def generated_name_flags(value)
+        flags = case value
+                when true then GENERATED_NAMES
+                when false, nil then []
+                else value.to_a.map(&:to_sym)
+                end
+        unknown = flags - GENERATED_NAMES
+        raise ArgumentError, "Unknown generated name flags #{unknown.inspect}" unless unknown.empty?
+
+        flags.to_set.freeze
       end
     end
   end

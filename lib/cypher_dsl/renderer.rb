@@ -3,7 +3,7 @@
 module CypherDSL
   # Turns a {Statement} into Cypher text according to a {Renderer::Configuration}.
   class Renderer
-    def self.default = @default ||= new(Configuration::DEFAULT)
+    def self.default = @default ||= new(Configuration.default)
 
     # Mirrors `Renderer.getRenderer(configuration)`.
     def self.get_renderer(configuration) = new(configuration)

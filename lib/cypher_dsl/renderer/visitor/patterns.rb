@@ -48,7 +48,7 @@ module CypherDSL
         # Inside a pattern expression (a pattern used as a condition) no new
         # variables may be introduced, so an unknown name is left out.
         def render_node(node)
-          name = node.symbolic_name && resolve_name(node.symbolic_name)
+          name = node.symbolic_name && resolve_name(node.symbolic_name, in_entity: true)
           return "(#{name})" if name && @visited_names.include?(name)
 
           @visited_names << name if name && !@in_pattern_expression
@@ -70,7 +70,7 @@ module CypherDSL
         # Like nodes, a named relationship renders in full once and as `[name]` afterwards.
         def render_relationship_details(relationship)
           details = relationship.details
-          name = relationship.symbolic_name && resolve_name(relationship.symbolic_name)
+          name = relationship.symbolic_name && resolve_name(relationship.symbolic_name, in_entity: true)
           inner = if name && @visited_names.include?(name)
                     "[#{name}]"
                   else
@@ -90,7 +90,8 @@ module CypherDSL
         def render_details_content(relationship)
           details = relationship.details
           types = details.types.map { |type| escape_schema_name(type) }.join('|')
-          name = relationship.symbolic_name && !@in_pattern_expression ? resolve_name(relationship.symbolic_name) : nil
+          named = relationship.symbolic_name && !@in_pattern_expression
+          name = named ? resolve_name(relationship.symbolic_name, in_entity: true) : nil
           [
             name,
             (":#{types}" unless types.empty?),

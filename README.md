@@ -80,6 +80,25 @@ Neo4j 5.23 on, `CALL { WITH u … }` before), whether paths use `shortestPath()`
 dynamic (`n:$($labels)`, Neo4j 5.26+) and whether the statement carries a `CYPHER 5`
 or `CYPHER 25` prefix.
 
+### Generated names
+
+`with_generated_names(true)` rewrites every variable, alias and parameter name while
+rendering (`v0`, `v1`, … and `p0`, `p1`, …), scope by scope, so that statements that
+differ only in their names render identically, which is useful as a query-cache key.
+A subset of the Java `GeneratedNames` flags narrows what gets rewritten:
+
+```ruby
+config = Renderer::Configuration.new_config
+  .with_generated_names(%i[entity_names parameter_names])   # or true for all flags
+  .build
+renderer = Renderer.get_renderer(config)
+renderer.render(statement)                     # => "MATCH (v0:`Movie`) WHERE v0.title = $p0 RETURN v0"
+renderer.catalog(statement).renamed_parameters # => {"title" => "p0"}
+```
+
+The flags are `entity_names`, `parameter_names`, `all_aliases`, `internal_aliases_only`
+(all aliases except those of the final `RETURN`) and `reuse_aliases`.
+
 ## Installation
 
 ```ruby

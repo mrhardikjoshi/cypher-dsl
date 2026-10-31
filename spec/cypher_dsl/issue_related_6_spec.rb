@@ -2,9 +2,7 @@
 
 # Translated from IssueRelatedIT.java, sixth slice (GH-1014 … Chaining).
 #
-# Adapted: `generatedNamesWithDeeplyNestedSubquerie` and `reusingAliases` need generated names
-# (`Configuration#with_generated_names`), which are not implemented yet; the first is marked pending,
-# the second is reduced to its default (no generated names) case.
+# Adapted: the `GeneratedNames` enum sets of `reusingAliases` are spelled out as flag lists.
 module CypherDSL
   RSpec.describe 'IssueRelatedIT (6)' do
     let(:pretty) { Renderer.get_renderer(Renderer::Configuration.pretty_printing) }
@@ -50,7 +48,6 @@ module CypherDSL
     end
 
     it 'generated names with deeply nested subqueries' do
-      pending 'generated names (Configuration#with_generated_names) are not implemented yet'
       m = Cypher.node('Movie').named(:this)
       a = Cypher.node('Actor').named(:this1)
       edge = Cypher.name(:edge)
@@ -121,11 +118,10 @@ module CypherDSL
 
     {
       'MATCH (movie:`Movie`) RETURN movie{.a, .b} AS movie' => nil,
-      'MATCH (v0:`Movie`) RETURN v0{.a, .b} AS v1' => %i[entity_names all_aliases internal_aliases parameter_names],
-      'MATCH (v0:`Movie`) RETURN v0{.a, .b} AS v0' => %i[entity_names all_aliases internal_aliases parameter_names reuse_aliases]
+      'MATCH (v0:`Movie`) RETURN v0{.a, .b} AS v1' => %i[entity_names all_aliases internal_aliases_only parameter_names],
+      'MATCH (v0:`Movie`) RETURN v0{.a, .b} AS v0' => %i[entity_names all_aliases internal_aliases_only parameter_names reuse_aliases]
     }.each do |expected, generated_names|
       it "reusing aliases: #{expected}" do # GH-1084
-        pending 'generated names (Configuration#with_generated_names) are not implemented yet' if generated_names
         config = Renderer::Configuration.new_config
         config = config.with_generated_names(generated_names) if generated_names
         renderer = Renderer.get_renderer(config.build)

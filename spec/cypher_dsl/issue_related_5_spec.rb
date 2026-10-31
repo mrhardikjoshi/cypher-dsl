@@ -3,8 +3,6 @@
 # Translated from IssueRelatedIT.java, fifth slice (GH-634 … GH-999).
 #
 # Adapted: `mapLiteralShouldRenderProper` asserts the Java `toString`; here the literal is rendered.
-# `subQueryFromParserScope` needs generated names (`Configuration#with_generated_names`), which are
-# not implemented yet, and is marked pending.
 module CypherDSL
   RSpec.describe 'IssueRelatedIT (5)' do
     let(:pretty) { Renderer.get_renderer(Renderer::Configuration.pretty_printing) }
@@ -339,7 +337,6 @@ module CypherDSL
 
     [Renderer::Dialect::NEO4J_4, Renderer::Dialect::NEO4J_5_DEFAULT_CYPHER].each do |dialect|
       it "sub query from parser scope (#{dialect})" do # GH-999
-        pending 'generated names (Configuration#with_generated_names) are not implemented yet'
         cfg = Renderer::Configuration.new_config.with_pretty_print(true).with_generated_names(true).with_dialect(dialect).build
         renderer = Renderer.get_renderer(cfg)
 
