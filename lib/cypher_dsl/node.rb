@@ -30,6 +30,12 @@ module CypherDSL
     # The condition `n:Label`, checking the node for the given labels.
     def has_labels(*labels) = HasLabelCondition.new(self, labels)
 
+    # `n += {…}`, for use in SET.
+    def mutate(expression) = Operation.new(self, '+=', Expression.coerce(expression))
+
+    # The map projection `n{…}`.
+    def project(*entries) = MapProjection.new(self, entries.flatten)
+
     # `id(n)`; deprecated in Neo4j 5 in favour of {#element_id}, kept for parity.
     def internal_id = FunctionInvocation.new('id', [required_symbolic_name])
 

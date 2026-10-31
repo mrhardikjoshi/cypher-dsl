@@ -73,10 +73,26 @@ module CypherDSL
     def create(*pattern_elements) = append(Clauses::Create.new(pattern_elements: pattern_elements.flatten.freeze), nil)
 
     def merge(*pattern_elements)
-      append(Clauses::Merge.new(pattern_elements: pattern_elements.flatten.freeze, on_create: nil, on_match: nil), nil)
+      append(Clauses::Merge.new(pattern_elements: pattern_elements.flatten.freeze, actions: [].freeze), nil)
     end
 
-    def set(*operations) = append(Clauses::Set.new(operations: operations.flatten.freeze), nil)
+    # `on_match.set(…)` / `on_create.mutate(…)` after a MERGE.
+    def on_match = MergeActionBuilder.new(self, :on_match)
+    def on_create = MergeActionBuilder.new(self, :on_create)
+
+    # Accepts operations (`n.p.to(x)`, `n.mutate(map)`), a node followed by
+    # labels (`set(n, 'A', 'B')`), or an even list of target/value pairs.
+    def set(*arguments) = append(Clauses::Set.new(operations: operations_for_set(arguments)), nil)
+
+    # `SET target += expression`.
+    def mutate(target, expression) = set(Operation.new(target, '+=', Expression.coerce(expression)))
+
+    # Accepts properties, or a node followed by labels (`remove(n, 'A', 'B')`).
+    def remove(*arguments)
+      arguments = arguments.flatten
+      items = label_operation?(arguments) ? [LabelOperation.new(arguments.first, arguments.drop(1))] : arguments
+      append(Clauses::Remove.new(items: items.freeze), nil)
+    end
 
     def delete(*expressions) = append(Clauses::Delete.new(detach: false, expressions: coerce_items(expressions)), nil)
 
@@ -105,9 +121,44 @@ module CypherDSL
       end
     end
 
+    # Intermediate state after `on_match` / `on_create`, waiting for `set` or `mutate`.
+    class MergeActionBuilder
+      def initialize(builder, type)
+        @builder = builder
+        @type = type
+        freeze
+      end
+
+      def set(*arguments) = @builder.send(:add_merge_action, @type, @builder.send(:operations_for_set, arguments))
+
+      def mutate(target, expression) = set(Operation.new(target, '+=', Expression.coerce(expression)))
+    end
+
     private
 
     def append(clause, mode) = StatementBuilder.new(@clauses + [clause], mode)
+
+    def add_merge_action(type, operations)
+      update_last(nil) do |clause|
+        raise ArgumentError, 'ON CREATE / ON MATCH need a preceding MERGE.' unless clause.is_a?(Clauses::Merge)
+
+        clause.with(actions: clause.actions + [MergeAction.new(type:, operations:)])
+      end
+    end
+
+    def operations_for_set(arguments)
+      arguments = arguments.flatten
+      return [LabelOperation.new(arguments.first, arguments.drop(1))].freeze if label_operation?(arguments)
+      return arguments.freeze if arguments.all?(Operation)
+      raise ArgumentError, 'The list of expression to set must be even.' if arguments.size.odd?
+
+      arguments.each_slice(2).map { |target, value| Operation.new(target, '=', Expression.coerce(value)) }.freeze
+    end
+
+    def label_operation?(arguments)
+      arguments.size > 1 && arguments.first.is_a?(Node) &&
+        arguments.drop(1).all? { |argument| argument.is_a?(String) || argument.is_a?(Symbol) }
+    end
 
     def optional_expression(value) = value.nil? ? nil : Expression.coerce(value)
 

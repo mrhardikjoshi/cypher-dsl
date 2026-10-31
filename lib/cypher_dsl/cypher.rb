@@ -65,6 +65,9 @@ module CypherDSL
     def count(expression) = FunctionInvocation.new('count', [Expression.coerce(expression)])
     def count_distinct(expression) = FunctionInvocation.new('count', [Expression.coerce(expression)], distinct: true)
     def type(relationship) = FunctionInvocation.new('type', [relationship.required_symbolic_name])
+
+    # `Cypher.call('db.labels')`: a procedure, usable as a function via `as_function`.
+    def call(procedure_name) = StandaloneCall.new(procedure_name)
     def coalesce(*expressions) = FunctionInvocation.new('coalesce', expressions.map { |e| Expression.coerce(e) })
 
     # --- statement builders -----------------------------------------------

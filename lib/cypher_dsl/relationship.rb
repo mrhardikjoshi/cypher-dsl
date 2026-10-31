@@ -50,6 +50,12 @@ module CypherDSL
 
     def property(*names) = Property.new(required_symbolic_name, names)
 
+    # `r += {…}`, for use in SET.
+    def mutate(expression) = Operation.new(self, '+=', Expression.coerce(expression))
+
+    # The map projection `r{…}`.
+    def project(*entries) = MapProjection.new(self, entries.flatten)
+
     def relationship_to(other, *types) = RelationshipChain.new([self]).relationship_to(other, *types)
     def relationship_from(other, *types) = RelationshipChain.new([self]).relationship_from(other, *types)
     def relationship_between(other, *types) = RelationshipChain.new([self]).relationship_between(other, *types)

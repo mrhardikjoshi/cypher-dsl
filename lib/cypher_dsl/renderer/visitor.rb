@@ -26,8 +26,9 @@ module CypherDSL
         when Clauses::With then render_with(clause)
         when Clauses::Return then render_projection('RETURN', clause, nil)
         when Clauses::Create then "CREATE #{render_pattern_elements(clause.pattern_elements)}"
-        when Clauses::Merge then "MERGE #{render_pattern_elements(clause.pattern_elements)}"
-        when Clauses::Set then "SET #{clause.operations.map { |operation| render_expression(operation) }.join(', ')}"
+        when Clauses::Merge then render_merge(clause)
+        when Clauses::Set then "SET #{render_operations(clause.operations)}"
+        when Clauses::Remove then "REMOVE #{render_operations(clause.items)}"
         when Clauses::Delete then render_delete(clause)
         when Clauses::Unwind
           "UNWIND #{render_expression(clause.expression)} AS #{render_expression(clause.variable)}"
@@ -39,6 +40,17 @@ module CypherDSL
       def render_match(clause)
         [('OPTIONAL ' if clause.optional), 'MATCH ', render_pattern_elements(clause.pattern_elements),
          render_where(clause.where)].join
+      end
+
+      def render_merge(clause)
+        actions = clause.actions.map do |action|
+          " ON #{action.type == :on_match ? 'MATCH' : 'CREATE'} SET #{render_operations(action.operations)}"
+        end
+        "MERGE #{render_pattern_elements(clause.pattern_elements)}#{actions.join}"
+      end
+
+      def render_operations(operations)
+        operations.map { |operation| render_expression(operation) }.join(', ')
       end
 
       def render_delete(clause)
@@ -151,17 +163,29 @@ module CypherDSL
         when Node, Relationship then render_expression(expression.required_symbolic_name)
         when Property then render_property(expression)
         when Literal then render_literal(expression.value)
-        when MapExpression then render_map(expression)
-        when ListExpression then "[#{expression.elements.map { |element| render_expression(element) }.join(', ')}]"
-        when PatternComprehension then render_pattern_comprehension(expression)
         when Parameter then "$#{expression.name}"
         when Asterisk then '*'
         when AliasedExpression
           "#{render_expression(expression.delegate)} AS #{render_expression(expression.alias_name)}"
         when FunctionInvocation then render_function_invocation(expression)
         when SortItem then render_sort_item(expression)
+        else render_container_expression(expression)
+        end
+      end
+
+      def render_container_expression(expression)
+        case expression
+        when MapExpression then render_map(expression)
+        when ListExpression then "[#{expression.elements.map { |element| render_expression(element) }.join(', ')}]"
+        when PatternComprehension then render_pattern_comprehension(expression)
+        when MapProjection then render_map_projection(expression)
+        when LabelOperation then render_labels(expression.node, expression.labels)
         else render_condition_or_operation(expression)
         end
+      end
+
+      def render_labels(node, labels)
+        "#{render_expression(node)}#{labels.map { |label| ":#{escape_schema_name(label)}" }.join}"
       end
 
       def render_condition_or_operation(expression)
@@ -171,8 +195,7 @@ module CypherDSL
         when ConstantCondition then expression.value.to_s
         when RelationshipPatternCondition then render_pattern_element(expression.pattern)
         when ListPredicate then render_list_predicate(expression)
-        when HasLabelCondition
-          "#{render_expression(expression.node)}#{expression.labels.map { |label| ":#{escape_schema_name(label)}" }.join}"
+        when HasLabelCondition then render_labels(expression.node, expression.labels)
         when Operation
           "#{render_expression(expression.left)} #{expression.operator} #{render_expression(expression.right)}"
         else raise ArgumentError, "Cannot render expression #{expression.inspect}"
@@ -182,6 +205,21 @@ module CypherDSL
       def render_list_predicate(predicate)
         "#{predicate.predicate}(#{render_expression(predicate.variable)} IN #{render_expression(predicate.list)} " \
           "WHERE #{render_expression(predicate.condition)})"
+      end
+
+      def render_map_projection(projection)
+        subject = projection.subject
+        entries = projection.entries.map do |entry|
+          case entry
+          when Asterisk then '.*'
+          when String, Symbol then ".#{Escaper.escape_if_necessary(entry.to_s)}"
+          when Property
+            entry.container == subject ? ".#{render_property(entry).split('.', 2).last}" : render_expression(entry)
+          when AliasedExpression then "#{render_expression(entry.alias_name)}: #{render_expression(entry.delegate)}"
+          else render_expression(entry)
+          end
+        end
+        "#{render_expression(subject)}{#{entries.join(', ')}}"
       end
 
       def render_pattern_comprehension(comprehension)
