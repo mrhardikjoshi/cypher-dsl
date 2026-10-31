@@ -6,10 +6,13 @@ module CypherDSL
     # it remembers which named nodes have already been rendered with their
     # content, so later occurrences render as `(name)` only.
     class Visitor
+      include Patterns
+      include Expressions
+
       def initialize(configuration)
         @configuration = configuration
         @visited_names = Set.new
-        @defined_aliases = Set.new
+        @defined_aliases = {}
         @generated_names = {}.compare_by_identity
         @parameter_uses = {}
         @anonymous_parameters = []
@@ -62,11 +65,12 @@ module CypherDSL
       def render_union(union)
         entry_names = @visited_names.dup
         entry_aliases = @defined_aliases.dup
+        keyword = union.all ? ' UNION ALL' : ' UNION'
         union.statements.map do |statement|
           @visited_names = entry_names.dup
           @defined_aliases = entry_aliases.dup
           render(statement)
-        end.join(union.all ? ' UNION ALL ' : ' UNION ')
+        end.join("#{keyword}#{break_line}")
       end
 
       # Unresolved symbolic names get a generated, render-stable name.
@@ -125,21 +129,27 @@ module CypherDSL
         body, imports = subquery_body_and_imports(clause)
         suffix = clause.in_transactions ? " IN TRANSACTIONS#{" OF #{clause.rows} ROWS" if clause.rows}" : ''
         if @configuration.legacy_subquery_syntax?
-          prefix = imports.empty? ? '' : "WITH #{imports.map { |import| render_expression(import) }.join(', ')} "
+          prefix = imports.empty? ? nil : "WITH #{imports.map { |import| render_expression(import) }.join(', ')}"
           opening = 'CALL {'
         else
           list = imports.map { |import| render_expression(import) }.join(', ')
           list = @first_clause ? '' : '*' if imports.empty?
-          prefix = ''
+          prefix = nil
           opening = "CALL (#{list}) {"
         end
-        rendered = block(opening, '}', inline_padding: '') { "#{prefix}#{render_in_scope(body, scope_of(imports))}" }
+        rendered = block(opening, '}', inline_padding: '') do
+          [prefix, render_in_scope(body, scope_of(imports))].compact.join(break_line)
+        end
         "#{rendered}#{suffix}"
       end
 
+      # An aliased import (`nodes AS x`) imports the name and renames it with a
+      # leading `WITH nodes AS x` inside the body.
       def subquery_body_and_imports(clause)
         body = clause.body
-        return [body, clause.imports] if clause.imports.any? || body.is_a?(RawExpression) || body.is_a?(UnionQuery)
+        return [body, clause.imports] if clause.imports.any? && clause.imports.none?(AliasedExpression)
+        return renamed_imports(body, clause.imports) if clause.imports.any?
+        return [body, []] if body.is_a?(RawExpression) || body.is_a?(UnionQuery)
 
         first = body.clauses.first
         return [body, []] unless importing_with?(first)
@@ -148,12 +158,22 @@ module CypherDSL
         [legacy ? body : Statement.new(body.clauses.drop(1), prefix: body.prefix), legacy ? [] : first.items]
       end
 
-      def importing_with?(clause)
-        clause.is_a?(Clauses::With) && !clause.distinct && clause.order.nil? && clause.skip.nil? &&
-          clause.limit.nil? && clause.where.nil? && clause.items.all?(SymbolicName)
+      def renamed_imports(body, imports)
+        names = imports.map { |import| import.is_a?(AliasedExpression) ? import.delegate : import }
+        rename = Clauses::With.new(distinct: false, items: imports, order: nil, skip: nil, limit: nil, where: nil)
+        [Statement.new([rename] + body.clauses, prefix: body.prefix), names]
       end
 
+      def importing_with?(clause)
+        clause.is_a?(Clauses::With) && !clause.distinct && clause.order.nil? && clause.skip.nil? &&
+          clause.limit.nil? && clause.where.nil? &&
+          clause.items.all? { |item| item.is_a?(SymbolicName) || item.is_a?(Asterisk) }
+      end
+
+      # Imported names form the subquery's scope; `*` imports the whole current scope.
       def scope_of(imports)
+        return @visited_names.dup if imports.any?(Asterisk)
+
         imports.filter_map { |import| import.is_a?(SymbolicName) ? resolve_name(import) : nil }.to_set
       end
 
@@ -240,18 +260,23 @@ module CypherDSL
         return render_expression(item) unless item.is_a?(AliasedExpression)
 
         alias_name = resolve_name(item.alias_name)
-        return Escaper.escape_if_necessary(alias_name) if @defined_aliases.include?(alias_name)
+        return Escaper.escape_if_necessary(alias_name) if alias_defined?(item, alias_name)
 
         rendered = "#{render_expression(item.delegate)} AS #{render_expression(item.alias_name)}"
-        @defined_aliases << alias_name
+        @defined_aliases[alias_name] = item.delegate
         rendered
       end
 
       def render_aliased_reference(item)
         alias_name = resolve_name(item.alias_name)
-        return Escaper.escape_if_necessary(alias_name) if @defined_aliases.include?(alias_name)
+        return Escaper.escape_if_necessary(alias_name) if alias_defined?(item, alias_name)
 
         render_expression(item.delegate)
+      end
+
+      # The same alias may be given to another expression later (`WITH a AS x RETURN count(*) AS x`).
+      def alias_defined?(item, alias_name)
+        @defined_aliases.key?(alias_name) && @defined_aliases[alias_name] == item.delegate
       end
 
       def render_pattern_elements(elements)
@@ -267,307 +292,6 @@ module CypherDSL
 
       def render_sort_item(item)
         [render_expression(item.expression), item.direction&.to_s&.upcase].compact.join(' ')
-      end
-
-      # --- pattern elements -----------------------------------------------
-
-      def render_pattern_element(element)
-        case element
-        when Node then render_node(element)
-        when Relationship
-          render_node(element.left) + render_relationship_details(element) + render_node(element.right)
-        when RelationshipChain then render_chain(element)
-        when NamedPath then render_named_path(element)
-        when QuantifiedPathPattern then render_quantified_path_pattern(element)
-        else raise ArgumentError, "Cannot render pattern element #{element.inspect}"
-        end
-      end
-
-      def render_named_path(path)
-        selector = path.selector && "#{path.selector.keyword} "
-        "#{render_expression(path.symbolic_name)} = #{selector}#{render_pattern_element(path.pattern)}"
-      end
-
-      def render_quantified_path_pattern(quantified)
-        inner = render_pattern_element(quantified.pattern)
-        inner += " WHERE #{render_expression(quantified.where_condition)}" if quantified.where_condition
-        "(#{inner})#{quantified.quantifier.to_cypher}"
-      end
-
-      def render_chain(chain)
-        chain.relationships.each_with_index.map do |relationship, index|
-          left = index.zero? ? render_node(relationship.left) : ''
-          left + render_relationship_details(relationship) + render_node(relationship.right)
-        end.join
-      end
-
-      def render_node(node)
-        name = node.symbolic_name && resolve_name(node.symbolic_name)
-        return "(#{name})" if name && @visited_names.include?(name)
-
-        @visited_names << name if name
-        labels = node.labels.map { |label| ":#{escape_schema_name(label)}" }.join
-        properties = node.properties && " #{render_expression(node.properties)}"
-        where = node.where_condition && " WHERE #{render_expression(node.where_condition)}"
-        "(#{name}#{labels}#{properties}#{where})"
-      end
-
-      def render_relationship_details(relationship)
-        details = relationship.details
-        empty = details.empty? && relationship.symbolic_name.nil?
-        inner = empty ? '' : "[#{render_details_content(relationship)}]"
-        quantifier = details.quantifier&.to_cypher
-        case relationship.direction
-        when :ltr then "-#{inner}->#{quantifier}"
-        when :rtl then "<-#{inner}-#{quantifier}"
-        else "-#{inner}-#{quantifier}"
-        end
-      end
-
-      def render_details_content(relationship)
-        details = relationship.details
-        types = details.types.map { |type| escape_schema_name(type) }.join('|')
-        [
-          relationship.symbolic_name && resolve_name(relationship.symbolic_name),
-          (":#{types}" unless types.empty?),
-          render_length(details),
-          details.properties && " #{render_expression(details.properties)}",
-          details.where && " WHERE #{render_expression(details.where)}"
-        ].join
-      end
-
-      def render_length(details)
-        return nil unless details.length?
-        return '*' if details.unbounded && details.min.nil? && details.max.nil?
-
-        "*#{details.min}..#{details.max}"
-      end
-
-      # --- expressions -----------------------------------------------------
-
-      def render_expression(expression)
-        case expression
-        when SymbolicName then Escaper.escape_if_necessary(resolve_name(expression))
-        when Node, Relationship then render_expression(expression.required_symbolic_name)
-        when Property then render_property(expression)
-        when Literal then render_literal(expression.value)
-        when Parameter then render_parameter(expression)
-        when Asterisk then '*'
-        when AliasedExpression then render_aliased_reference(expression)
-        when NamedPath then render_expression(expression.symbolic_name)
-        when RawExpression then expression.content
-        when CollectExpression
-          block('COLLECT {', '}') { render_subquery(expression.statement, expression.imports) }
-        when FunctionInvocation then render_function_invocation(expression)
-        when SortItem then render_sort_item(expression)
-        when CaseExpression then render_case(expression)
-        when UnaryOperation then "#{expression.operator}#{render_expression(expression.expression)}"
-        when ListOperator then render_list_operator(expression)
-        else render_container_expression(expression)
-        end
-      end
-
-      def render_case(case_expression)
-        parts = ['CASE']
-        parts << render_expression(case_expression.subject) if case_expression.subject
-        case_expression.whens.each do |condition, value|
-          parts << "WHEN #{render_expression(condition)} THEN #{render_expression(value)}"
-        end
-        parts << "ELSE #{render_expression(case_expression.default)}" if case_expression.default
-        parts << 'END'
-        parts.join(' ')
-      end
-
-      def render_list_operator(operator)
-        list = render_expression(operator.list)
-        return "#{list}[#{render_expression(operator.start_index)}]" unless operator.slice
-
-        from = operator.start_index && render_expression(operator.start_index)
-        to = operator.end_index && render_expression(operator.end_index)
-        "#{list}[#{from}..#{to}]"
-      end
-
-      def render_container_expression(expression)
-        case expression
-        when MapExpression then render_map(expression)
-        when ListExpression then "[#{expression.elements.map { |element| render_expression(element) }.join(', ')}]"
-        when PatternComprehension then render_pattern_comprehension(expression)
-        when ListComprehension then render_list_comprehension(expression)
-        when MapProjection then render_map_projection(expression)
-        when LabelOperation then render_labels(expression.node, expression.labels)
-        else render_condition_or_operation(expression)
-        end
-      end
-
-      def render_labels(node, labels)
-        "#{render_expression(node)}#{labels.map { |label| ":#{escape_schema_name(label)}" }.join}"
-      end
-
-      def render_condition_or_operation(expression)
-        case expression
-        when Comparison then render_comparison(expression)
-        when CompoundCondition then render_compound_condition(expression)
-        when ConstantCondition then expression.value.to_s
-        when ExpressionCondition then render_expression(expression.expression)
-        when ExistsCondition then render_exists(expression)
-        when RelationshipPatternCondition then render_pattern_element(expression.pattern)
-        when ListPredicate then render_list_predicate(expression)
-        when HasLabelCondition then render_labels(expression.node, expression.labels)
-        when Operation then render_operation(expression)
-        else raise ArgumentError, "Cannot render expression #{expression.inspect}"
-        end
-      end
-
-      def render_operation(operation)
-        left = render_expression(operation.left)
-        right = render_expression(operation.right)
-        return "#{left}^#{right}" if operation.operator == '^'
-
-        rendered = "#{left} #{operation.operator} #{right}"
-        operation.assignment? ? rendered : "(#{rendered})"
-      end
-
-      def render_exists(condition)
-        body = condition.body
-        return "EXISTS { #{render_pattern_element(body)} }" unless body.is_a?(Statement)
-
-        block('EXISTS {', '}') { render_subquery(body, condition.imports) }
-      end
-
-      def render_list_predicate(predicate)
-        "#{predicate.predicate}(#{render_expression(predicate.variable)} IN #{render_expression(predicate.list)} " \
-          "WHERE #{render_expression(predicate.condition)})"
-      end
-
-      def render_map_projection(projection)
-        subject = render_expression(projection.subject)
-        render_entries("#{subject}#{' ' if pretty?}{", '}') do
-          projection.entries.map do |kind, *args|
-            case kind
-            when :all then '.*'
-            when :lookup then ".#{Escaper.escape_if_necessary(args.first)}"
-            when :property then ".#{Escaper.escape_if_necessary(args.first.names.first)}"
-            when :pair then "#{Escaper.escape_if_necessary(args.first)}: #{render_expression(args.last)}"
-            else render_expression(args.first)
-            end
-          end
-        end
-      end
-
-      # A pattern comprehension is its own scope: names it introduces do not
-      # count as visited outside of it.
-      def render_pattern_comprehension(comprehension)
-        outer_scope = @visited_names.dup
-        parts = [render_pattern_element(comprehension.pattern)]
-        parts << "WHERE #{render_expression(comprehension.where_condition)}" if comprehension.where_condition
-        projection = comprehension.projection.map { |expression| render_expression(expression) }
-        parts << "| #{projection.size == 1 ? projection.first : "[#{projection.join(', ')}]"}"
-        @visited_names = outer_scope
-        "[#{parts.join(' ')}]"
-      end
-
-      def render_list_comprehension(comprehension)
-        parts = ["#{render_expression(comprehension.variable)} IN #{render_expression(comprehension.list)}"]
-        parts << "WHERE #{render_expression(comprehension.where_condition)}" if comprehension.where_condition
-        parts << "| #{render_expression(comprehension.projection)}" if comprehension.projection
-        "[#{parts.join(' ')}]"
-      end
-
-      # Records every use for the catalog; anonymous parameters get `pcdslNN`,
-      # shared between anonymous parameters with equal values.
-      def render_parameter(parameter)
-        name = parameter.anonymous? ? anonymous_parameter_name(parameter) : parameter.name
-        (@parameter_uses[name] ||= []) << parameter.value
-        "$#{Escaper.escape_parameter_name(name)}"
-      end
-
-      def anonymous_parameter_name(parameter)
-        index = @anonymous_parameters.index(parameter)
-        unless index
-          @anonymous_parameters << parameter
-          index = @anonymous_parameters.size - 1
-        end
-        format('pcdsl%02d', index + 1)
-      end
-
-      def render_property(property)
-        lookups = property.names.map do |name|
-          name.is_a?(Expression) ? "[#{render_expression(name)}]" : ".#{Escaper.escape_if_necessary(name)}"
-        end
-        "#{render_expression(property.container)}#{lookups.join}"
-      end
-
-      def render_literal(value)
-        case value
-        when String then "'#{value.gsub('\\') { '\\\\' }.gsub("'") { "\\'" }}'"
-        when nil then 'NULL'
-        when true, false, Numeric then value.to_s
-        else raise ArgumentError, "Cannot render literal #{value.inspect}"
-        end
-      end
-
-      def render_map(map)
-        render_entries('{', '}') do
-          map.entries.map { |key, value| "#{Escaper.escape_if_necessary(key)}: #{render_expression(value)}" }
-        end
-      end
-
-      # Comma separated entries, one per indented line when pretty printing.
-      def render_entries(opening, closing, &entries)
-        entries = nested(&entries)
-        return "#{opening}#{entries.join(', ')}#{closing}" unless pretty?
-
-        "#{opening}#{break_line(@level + 1)}#{entries.join(",#{break_line(@level + 1)}")}#{break_line}#{closing}"
-      end
-
-      def render_comparison(comparison)
-        left = render_operand(comparison.left)
-        return "#{left} #{comparison.operator}" if comparison.unary?
-
-        "#{left} #{comparison.operator} #{render_operand(comparison.right)}"
-      end
-
-      # A comparison nested inside another comparison is parenthesised: `(1 > 2) = true`.
-      def render_operand(expression)
-        rendered = render_expression(expression)
-        expression.is_a?(Comparison) ? "(#{rendered})" : rendered
-      end
-
-      # Pretty printed, each further operand starts an indented line: `(a\n  AND b)`.
-      def render_compound_condition(condition)
-        if condition.negation?
-          negated = condition.conditions.first
-          rendered = render_expression(negated)
-          return negated.is_a?(RelationshipPatternCondition) ? "NOT #{rendered}" : "NOT (#{rendered})"
-        end
-
-        operands = nested { condition.conditions.map { |inner| render_expression(inner) } }
-        "(#{operands.join("#{break_line(@level + 1)}#{condition.operator} ")})"
-      end
-
-      def render_function_invocation(invocation)
-        arguments = invocation.arguments.map do |argument|
-          pattern_element?(argument) ? render_pattern_element(argument) : render_expression(argument)
-        end
-        rendered = "#{invocation.function_name}(#{'DISTINCT ' if invocation.distinct}#{arguments.join(', ')})"
-        # Neo4j 4 has no elementId(); the closest equivalent is the stringified internal id.
-        if invocation.function_name == 'elementId' && @configuration.dialect == Dialect::NEO4J_4
-          "toString(id(#{arguments.join(', ')}))"
-        else
-          rendered
-        end
-      end
-
-      def pattern_element?(argument)
-        case argument
-        when RelationshipChain, Relationship then true
-        when Node then !argument.named?
-        else false
-        end
-      end
-
-      def escape_schema_name(name)
-        @configuration.always_escape_names ? Escaper.escape(name) : Escaper.escape_if_necessary(name)
       end
     end
   end

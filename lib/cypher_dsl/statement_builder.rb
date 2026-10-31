@@ -123,6 +123,12 @@ module CypherDSL
       append(subquery_clause(statement, arguments, in_transactions: true, rows:), nil)
     end
 
+    # `CALL (*) { raw cypher }`.
+    def call_raw_cypher(cypher)
+      body = RawExpression.new(cypher)
+      append(Clauses::CallSubquery.new(body:, imports: [], in_transactions: false, rows: nil), nil)
+    end
+
     # `load_csv('file:///x.csv').as(:line)`.
     def load_csv(uri, with_headers: false) = OngoingLoadCsv.new(self, uri.to_s, with_headers)
 
@@ -215,12 +221,17 @@ module CypherDSL
 
     def operations_for_set(arguments)
       arguments = arguments.flatten
+      if arguments.any? { |argument| argument.is_a?(LabelOperation) && argument.remove? }
+        raise ArgumentError, 'REMOVE operations are not supported in a SET clause'
+      end
       return [LabelOperation.new(arguments.first, arguments.drop(1))].freeze if label_operation?(arguments)
-      return arguments.freeze if arguments.all?(Operation)
+      return arguments.freeze if arguments.all? { |argument| operation?(argument) }
       raise ArgumentError, 'The list of expression to set must be even.' if arguments.size.odd?
 
       arguments.each_slice(2).map { |target, value| Operation.new(target, '=', Expression.coerce(value)) }.freeze
     end
+
+    def operation?(argument) = argument.is_a?(Operation) || argument.is_a?(LabelOperation)
 
     def label_operation?(arguments)
       arguments.size > 1 && arguments.first.is_a?(Node) &&

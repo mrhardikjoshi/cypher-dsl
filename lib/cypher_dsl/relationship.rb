@@ -61,10 +61,14 @@ module CypherDSL
     # `((a)-[:X]->(b)){1,3}`: a quantifier on the whole pattern.
     def quantify(quantifier) = QuantifiedPathPattern.new(self, quantifier)
 
+    # The pattern as a predicate, `WHERE (a)-[:X]->(b)`.
+    def as_condition = RelationshipPatternCondition.new(self)
+
     def property(*names) = Property.new(required_symbolic_name, names)
 
-    # `r += {…}`, for use in SET.
+    # `r += {…}` and `r = {…}`, for use in SET.
     def mutate(expression) = Operation.new(self, '+=', Expression.coerce(expression))
+    def set(expression) = Operation.new(self, '=', Expression.coerce(expression))
 
     # The map projection `r{…}`, built on the (possibly generated) name.
     def project(*entries) = MapProjection.new(required_symbolic_name, entries.flatten)

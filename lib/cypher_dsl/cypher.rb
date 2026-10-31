@@ -30,7 +30,7 @@ module CypherDSL
     # and a name may be an expression for a dynamic lookup (`n[$prop]`).
     def property(container, *names)
       container = SymbolicName.of(container) unless container.is_a?(Expression)
-      Property.new(container, names)
+      Property.new(container, names.flatten)
     end
 
     # `$name`, optionally with its value; see {Parameter}.
@@ -77,10 +77,18 @@ module CypherDSL
     def shortest_k(count) = NamedPath::Selector.shortest_k(count)
     def shortest_k_groups(count) = NamedPath::Selector.shortest_k(count, groups: true)
 
-    # `EXISTS { pattern }` / `EXISTS { [WITH imports] statement }`.
-    def exists(pattern_or_statement, *imports)
-      ExistsCondition.new(pattern_or_statement, imports.flatten.map { |import| Expression.coerce(import) })
+    # `EXISTS { pattern }` / `EXISTS { pattern, pattern }` / `EXISTS { [WITH imports] statement }`.
+    # Given a plain expression it is the legacy `exists(expr)`, rendered as `expr IS NOT NULL`.
+    def exists(body, *imports)
+      return Expression.coerce(body).is_not_null if body.is_a?(Expression) && !body.is_a?(Statement) && !pattern?(body)
+
+      ExistsCondition.new(body, imports.flatten.map { |import| Expression.coerce(import) })
     end
+
+    PATTERN_TYPES = [Relationship, RelationshipChain, QuantifiedPathPattern, NamedPath].freeze
+    private_constant :PATTERN_TYPES
+
+    def pattern?(value) = PATTERN_TYPES.any? { |type| value.is_a?(type) }
 
     # List predicates: `Cypher.all(:x).in(list).where(condition)`.
     def all(variable) = ListPredicate::Ongoing.new('all', variable)
@@ -98,6 +106,7 @@ module CypherDSL
 
     def set(target, value) = Operation.new(target, '=', Expression.coerce(value))
     def set_label(node, *labels) = LabelOperation.new(node, labels)
+    def remove_label(node, *labels) = LabelOperation.new(node, labels, remove: true)
     def mutate(target, expression) = Operation.new(target, '+=', Expression.coerce(expression))
     def minus(expression) = UnaryOperation.new('-', Expression.coerce(expression))
     def plus(expression) = UnaryOperation.new('+', Expression.coerce(expression))
@@ -122,7 +131,33 @@ module CypherDSL
       function('collect', expression_or_statement)
     end
 
+    def collect_distinct(expression)
+      FunctionInvocation.new('collect', [Expression.coerce(expression)], distinct: true)
+    end
+
+    def percentile_cont(expression, percentile) = function('percentileCont', expression, percentile)
+    def percentile_disc(expression, percentile) = function('percentileDisc', expression, percentile)
+    def st_dev(expression) = function('stDev', expression)
+    def st_dev_p(expression) = function('stDevP', expression)
+    def head(expression) = function('head', expression)
+    def last(expression) = function('last', expression)
+    def tail(expression) = function('tail', expression)
+    def reverse(expression) = function('reverse', expression)
+    def keys(expression) = function('keys', expression)
+    def properties(expression) = function('properties', expression)
     def rand = function('rand')
+    def datetime(*) = function('datetime', *)
+    def localdatetime(*) = function('localdatetime', *)
+    def date(*) = function('date', *)
+    def time(*) = function('time', *)
+    def localtime(*) = function('localtime', *)
+    def duration(*) = function('duration', *)
+
+    # `id(n)`; deprecated in Neo4j 5 in favour of {#element_id}, kept for parity.
+    def id(element) = FunctionInvocation.new('id', [element.required_symbolic_name])
+
+    # A map projection on a name: `Cypher.create_projection(:n, 'title')` → `n{.title}`.
+    def create_projection(name, *entries) = MapProjection.new(SymbolicName.of(name), entries.flatten)
     def to_integer(expression) = function('toInteger', expression)
     def to_float(expression) = function('toFloat', expression)
     def to_string(expression) = function('toString', expression)
@@ -143,7 +178,18 @@ module CypherDSL
     def sort(expression) = SortItem.new(Expression.coerce(expression), nil)
 
     def size(expression_or_pattern) = FunctionInvocation.new('size', [expression_or_pattern])
-    def count(expression) = FunctionInvocation.new('count', [Expression.coerce(expression)])
+
+    # `count(expression)`, or `COUNT { pattern }` / `COUNT { statement }` for patterns and statements.
+    def count(expression_or_pattern)
+      subquery = pattern?(expression_or_pattern) || expression_or_pattern.is_a?(Statement)
+      return CountExpression.new(expression_or_pattern) if subquery
+
+      FunctionInvocation.new('count', [Expression.coerce(expression_or_pattern)])
+    end
+
+    # `point({longitude: x, latitude: y})` and `point.withinBBox(point, lowerLeft, upperRight)`.
+    def coordinate(longitude, latitude) = point(map_of('longitude', longitude, 'latitude', latitude))
+    def within_bbox(point, lower_left, upper_right) = function('point.withinBBox', point, lower_left, upper_right)
     def count_distinct(expression) = FunctionInvocation.new('count', [Expression.coerce(expression)], distinct: true)
     def type(relationship) = FunctionInvocation.new('type', [relationship.required_symbolic_name])
 

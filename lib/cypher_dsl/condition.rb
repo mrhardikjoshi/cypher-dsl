@@ -14,9 +14,21 @@ module CypherDSL
       end
     end
 
-    def and(other) = CompoundCondition.create('AND', self, Condition.coerce(other))
-    def or(other) = CompoundCondition.create('OR', self, Condition.coerce(other))
-    def xor(other) = CompoundCondition.create('XOR', self, Condition.coerce(other))
+    def and(other) = combine('AND', other)
+    def or(other) = combine('OR', other)
+    def xor(other) = combine('XOR', other)
     def not = CompoundCondition.new('NOT', [self])
+
+    private
+
+    # Chaining conditions flattens same-operator chains; chaining a relationship
+    # pattern (the Java overload) wraps without flattening, as upstream does.
+    def combine(operator, other)
+      return CompoundCondition.new(operator, [self, Condition.coerce(other)]) if pattern?(other)
+
+      CompoundCondition.create(operator, self, Condition.coerce(other))
+    end
+
+    def pattern?(value) = value.is_a?(Relationship) || value.is_a?(RelationshipChain)
   end
 end

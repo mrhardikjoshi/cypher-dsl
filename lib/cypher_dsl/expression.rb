@@ -11,6 +11,9 @@ module CypherDSL
 
     def as(alias_name) = AliasedExpression.new(self, alias_name)
 
+    # A property of this expression's value, e.g. `$param.key` or `datetime().epochSeconds`.
+    def property(*names) = Property.new(self, names)
+
     # This expression as a condition, e.g. a CASE expression in WHERE.
     def as_condition = ExpressionCondition.new(self)
 
@@ -32,6 +35,11 @@ module CypherDSL
     def is_true = Comparison.new(self, '=', Literal::TRUE)
     def is_false = Comparison.new(self, '=', Literal::FALSE)
     def in(haystack) = Comparison.new(self, 'IN', Expression.coerce(haystack))
+
+    # `size(self)`, `size(self) = n` and `size(self) = 0`.
+    def size = FunctionInvocation.new('size', [self])
+    def has_size(expected) = size.is_equal_to(expected)
+    def is_empty = size.is_equal_to(Literal.new(0))
 
     # `all(x IN list WHERE x IN self)` / `any(…)`: does this list contain all / any of the elements?
     def includes_all(list) = ListPredicate.new('all', :x, Expression.coerce(list), SymbolicName.of(:x).in(self))

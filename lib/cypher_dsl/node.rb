@@ -42,8 +42,9 @@ module CypherDSL
     # The condition `n:Label`, checking the node for the given labels.
     def has_labels(*labels) = HasLabelCondition.new(self, labels)
 
-    # `n += {…}`, for use in SET.
+    # `n += {…}` and `n = {…}`, for use in SET.
     def mutate(expression) = Operation.new(self, '+=', Expression.coerce(expression))
+    def set(expression) = Operation.new(self, '=', Expression.coerce(expression))
 
     # The map projection `n{…}`, built on the (possibly generated) name.
     def project(*entries) = MapProjection.new(required_symbolic_name, entries.flatten)

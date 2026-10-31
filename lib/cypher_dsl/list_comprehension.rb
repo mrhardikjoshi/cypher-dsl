@@ -20,8 +20,16 @@ module CypherDSL
 
     def where(condition) = with(where_condition: Condition.coerce(condition))
 
-    # Without an argument the comprehension yields the variable itself.
-    def returning(expression = nil) = with(projection: expression && Expression.coerce(expression))
+    # Without an argument the comprehension yields the variable itself; several
+    # expressions yield a list.
+    def returning(*expressions)
+      projection = case expressions.size
+                   when 0 then nil
+                   when 1 then Expression.coerce(expressions.first)
+                   else ListExpression.of(expressions)
+                   end
+      with(projection:)
+    end
 
     private
 

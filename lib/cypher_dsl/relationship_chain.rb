@@ -28,6 +28,9 @@ module CypherDSL
     # `((a)-[]->(b)-[]->(c)){1,3}`: a quantifier on the whole chain.
     def quantify(quantifier) = QuantifiedPathPattern.new(self, quantifier)
 
+    # The chain as a predicate.
+    def as_condition = RelationshipPatternCondition.new(self)
+
     private
 
     def add(direction, other, types)

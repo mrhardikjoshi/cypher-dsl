@@ -32,6 +32,9 @@ module CypherDSL
 
     def build = Statement.new((@builder&.send(:clauses) || []) + [clause([])])
 
+    # The call without YIELD, continuing as a statement builder (for `VOID` procedures).
+    def without_results = (@builder || StatementBuilder.new).send(:append, clause([]), nil)
+
     # The procedure as a function invocation; `distinct` only for aggregates.
     def as_function(distinct = false) # rubocop:disable Style/OptionalBooleanParameter
       if distinct && !AGGREGATES.include?(procedure_name.downcase)
@@ -50,7 +53,7 @@ module CypherDSL
     def yield_item(item)
       case item
       when String, Symbol then SymbolicName.of(item)
-      when SymbolicName, AliasedExpression then item
+      when SymbolicName, AliasedExpression, Asterisk then item
       else raise ArgumentError, "Cannot yield #{item.inspect}"
       end
     end

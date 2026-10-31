@@ -14,8 +14,9 @@ module CypherDSL
 
     def self.anonymous(value) = new(nil, value)
 
+    # A leading `$` in the name is tolerated and dropped.
     def initialize(name, value = NO_VALUE)
-      @name = name&.to_s
+      @name = name&.to_s&.delete_prefix('$')
       raise ArgumentError, 'A parameter name must not be empty.' if @name && @name.empty?
 
       @value = value
