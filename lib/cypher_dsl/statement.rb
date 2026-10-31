@@ -4,10 +4,12 @@ module CypherDSL
   # A built, immutable statement: an ordered list of clauses. Rendering with the
   # default renderer is memoised, as in the Java `Statement#getCypher`.
   class Statement
-    attr_reader :clauses
+    attr_reader :clauses, :prefix
 
-    def initialize(clauses)
+    # `prefix` is `EXPLAIN` or `PROFILE` for the corresponding statement kinds.
+    def initialize(clauses, prefix: nil)
       @clauses = clauses.freeze
+      @prefix = prefix
       @cypher = nil
     end
 

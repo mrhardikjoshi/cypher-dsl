@@ -63,13 +63,47 @@ module CypherDSL
     def skip(amount) = update_last(@mode) { |clause| clause.with(skip: optional_expression(amount)) }
     def limit(amount) = update_last(@mode) { |clause| clause.with(limit: optional_expression(amount)) }
 
+    # `unwind(list).as(:item)`; `as` completes the clause.
+    def unwind(expression)
+      OngoingUnwind.new(self, coerce_items([expression]).first)
+    end
+
     # --- updating --------------------------------------------------------
+
+    def create(*pattern_elements) = append(Clauses::Create.new(pattern_elements: pattern_elements.flatten.freeze), nil)
+
+    def merge(*pattern_elements)
+      append(Clauses::Merge.new(pattern_elements: pattern_elements.flatten.freeze, on_create: nil, on_match: nil), nil)
+    end
 
     def set(*operations) = append(Clauses::Set.new(operations: operations.flatten.freeze), nil)
 
+    def delete(*expressions) = append(Clauses::Delete.new(detach: false, expressions: coerce_items(expressions)), nil)
+
+    def detach_delete(*expressions)
+      append(Clauses::Delete.new(detach: true, expressions: coerce_items(expressions)), nil)
+    end
+
     # --- finishing -------------------------------------------------------
 
+    def finish = append(Clauses::Finish.new, nil)
+
     def build = Statement.new(@clauses)
+    def explain = Statement.new(@clauses, prefix: 'EXPLAIN')
+    def profile = Statement.new(@clauses, prefix: 'PROFILE')
+
+    # Intermediate state of `unwind(expression)` waiting for `as(variable)`.
+    class OngoingUnwind
+      def initialize(builder, expression)
+        @builder = builder
+        @expression = expression
+        freeze
+      end
+
+      def as(variable)
+        @builder.send(:append, Clauses::Unwind.new(expression: @expression, variable: SymbolicName.of(variable)), nil)
+      end
+    end
 
     private
 

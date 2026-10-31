@@ -49,11 +49,16 @@ module CypherDSL
     def sort(expression) = SortItem.new(Expression.coerce(expression), nil)
 
     def size(expression_or_pattern) = FunctionInvocation.new('size', [expression_or_pattern])
+    def count(expression) = FunctionInvocation.new('count', [Expression.coerce(expression)])
 
     # --- statement builders -----------------------------------------------
 
     def match(*pattern_elements) = StatementBuilder.new.match(*pattern_elements)
     def optional_match(*pattern_elements) = StatementBuilder.new.optional_match(*pattern_elements)
+    def create(*pattern_elements) = StatementBuilder.new.create(*pattern_elements)
+    def merge(*pattern_elements) = StatementBuilder.new.merge(*pattern_elements)
+    def with(*expressions) = StatementBuilder.new.with(*expressions)
+    def unwind(expression) = StatementBuilder.new.unwind(expression)
     def returning(*expressions) = StatementBuilder.new.returning(*expressions)
     def returning_distinct(*expressions) = StatementBuilder.new.returning_distinct(*expressions)
   end

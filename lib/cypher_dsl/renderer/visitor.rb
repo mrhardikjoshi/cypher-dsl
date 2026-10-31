@@ -12,7 +12,8 @@ module CypherDSL
       end
 
       def render(statement)
-        statement.clauses.map { |clause| render_clause(clause) }.join(' ')
+        rendered = statement.clauses.map { |clause| render_clause(clause) }.join(' ')
+        statement.prefix ? "#{statement.prefix} #{rendered}" : rendered
       end
 
       private
@@ -22,16 +23,44 @@ module CypherDSL
       def render_clause(clause)
         case clause
         when Clauses::Match then render_match(clause)
-        when Clauses::With then render_projection('WITH', clause, clause.where)
+        when Clauses::With then render_with(clause)
         when Clauses::Return then render_projection('RETURN', clause, nil)
+        when Clauses::Create then "CREATE #{render_pattern_elements(clause.pattern_elements)}"
+        when Clauses::Merge then "MERGE #{render_pattern_elements(clause.pattern_elements)}"
         when Clauses::Set then "SET #{clause.operations.map { |operation| render_expression(operation) }.join(', ')}"
+        when Clauses::Delete then render_delete(clause)
+        when Clauses::Unwind
+          "UNWIND #{render_expression(clause.expression)} AS #{render_expression(clause.variable)}"
+        when Clauses::Finish then 'FINISH'
         else raise ArgumentError, "Cannot render clause #{clause.inspect}"
         end
       end
 
       def render_match(clause)
-        patterns = clause.pattern_elements.map { |element| render_pattern_element(element) }.join(', ')
-        [('OPTIONAL ' if clause.optional), 'MATCH ', patterns, render_where(clause.where)].join
+        [('OPTIONAL ' if clause.optional), 'MATCH ', render_pattern_elements(clause.pattern_elements),
+         render_where(clause.where)].join
+      end
+
+      def render_delete(clause)
+        "#{'DETACH ' if clause.detach}DELETE #{clause.expressions.map { |expression| render_expression(expression) }.join(', ')}"
+      end
+
+      # WITH ends a query part: only the names it projects stay in scope, so a
+      # node that is not carried over renders with its labels again afterwards.
+      def render_with(clause)
+        rendered = render_projection('WITH', clause, clause.where)
+        @visited_names = clause.items.include?(Asterisk::INSTANCE) ? @visited_names : exported_names(clause.items)
+        rendered
+      end
+
+      def exported_names(items)
+        items.filter_map do |item|
+          case item
+          when AliasedExpression then item.alias_name.value
+          when SymbolicName then item.value
+          when Node, Relationship then item.symbolic_name&.value
+          end
+        end.to_set
       end
 
       def render_projection(keyword, clause, where)
@@ -42,6 +71,10 @@ module CypherDSL
         parts << "LIMIT #{render_expression(clause.limit)}" if clause.limit
         parts << "WHERE #{render_expression(where)}" if where
         parts.join(' ')
+      end
+
+      def render_pattern_elements(elements)
+        elements.map { |element| render_pattern_element(element) }.join(', ')
       end
 
       def render_where(condition)
@@ -97,7 +130,7 @@ module CypherDSL
           details.symbolic_name&.value,
           (":#{types}" unless types.empty?),
           render_length(details),
-          (details.properties && " #{render_expression(details.properties)}")
+          details.properties && " #{render_expression(details.properties)}"
         ].join
       end
 
@@ -121,12 +154,20 @@ module CypherDSL
         when Asterisk then '*'
         when AliasedExpression
           "#{render_expression(expression.delegate)} AS #{render_expression(expression.alias_name)}"
-        when Comparison then render_comparison(expression)
-        when CompoundCondition then render_compound_condition(expression)
-        when Operation
-          "#{render_expression(expression.left)} #{expression.operator} #{render_expression(expression.right)}"
         when FunctionInvocation then render_function_invocation(expression)
         when SortItem then render_sort_item(expression)
+        else render_condition_or_operation(expression)
+        end
+      end
+
+      def render_condition_or_operation(expression)
+        case expression
+        when Comparison then render_comparison(expression)
+        when CompoundCondition then render_compound_condition(expression)
+        when HasLabelCondition
+          "#{render_expression(expression.node)}#{expression.labels.map { |label| ":#{escape_schema_name(label)}" }.join}"
+        when Operation
+          "#{render_expression(expression.left)} #{expression.operator} #{render_expression(expression.right)}"
         else raise ArgumentError, "Cannot render expression #{expression.inspect}"
         end
       end
@@ -171,7 +212,11 @@ module CypherDSL
       end
 
       def pattern_element?(argument)
-        argument.is_a?(RelationshipChain) || argument.is_a?(Relationship) || argument.is_a?(Node) && !argument.named?
+        case argument
+        when RelationshipChain, Relationship then true
+        when Node then !argument.named?
+        else false
+        end
       end
 
       def escape_schema_name(name)

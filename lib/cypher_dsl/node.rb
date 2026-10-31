@@ -27,6 +27,9 @@ module CypherDSL
 
     def property(*names) = Property.new(required_symbolic_name, names)
 
+    # The condition `n:Label`, checking the node for the given labels.
+    def has_labels(*labels) = HasLabelCondition.new(self, labels)
+
     def relationship_to(other, *types) = Relationship.create(self, :ltr, other, types)
     def relationship_from(other, *types) = Relationship.create(self, :rtl, other, types)
     def relationship_between(other, *types) = Relationship.create(self, :uni, other, types)
