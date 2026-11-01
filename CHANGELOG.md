@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0.alpha.3] - 2026-11-01
+
+The release activegraph's `ActiveGraph::Core::Query` builds on.
+
 ### Added
 
 - Raw fragments for host DSLs built on strings (Ruby-only, no Java counterpart): `Cypher.raw`
@@ -88,6 +92,7 @@ collection, IssueRelatedIT, FunctionsIT).
 - Renderer with dialects (Neo4j 4, 5, 5.23+), pretty printing, identifier escaping,
   parameter collection (`Statement#catalog`).
 
-[Unreleased]: https://github.com/neo4jrb/cypher-dsl/compare/v0.1.0.alpha.2...HEAD
+[Unreleased]: https://github.com/neo4jrb/cypher-dsl/compare/v0.1.0.alpha.3...HEAD
+[0.1.0.alpha.3]: https://github.com/neo4jrb/cypher-dsl/compare/v0.1.0.alpha.2...v0.1.0.alpha.3
 [0.1.0.alpha.2]: https://github.com/neo4jrb/cypher-dsl/compare/v0.1.0.alpha.1...v0.1.0.alpha.2
 [0.1.0.alpha.1]: https://github.com/neo4jrb/cypher-dsl/releases/tag/v0.1.0.alpha.1
