@@ -8,6 +8,7 @@ module CypherDSL
     class Visitor
       include Patterns
       include Expressions
+      include Conditions
       include LabelRendering
 
       def initialize(configuration)
@@ -117,16 +118,20 @@ module CypherDSL
         when Clauses::Set then "SET #{render_operations(clause.operations)}"
         when Clauses::Remove then "REMOVE #{render_operations(clause.items)}"
         when Clauses::Delete then render_delete(clause)
-        when Clauses::Unwind
-          "UNWIND #{render_expression(clause.expression)} AS #{render_expression(clause.variable)}"
+        when Clauses::Unwind then render_unwind(clause)
         when Clauses::Finish then 'FINISH'
         when Clauses::Foreach then render_foreach(clause)
         when Clauses::Call then render_call(clause)
         when Clauses::CallSubquery then render_call_subquery(clause)
         when Clauses::LoadCsv then render_load_csv(clause)
         when Clauses::Use then "USE #{clause.graph.is_a?(String) ? clause.graph : render_expression(clause.graph)}"
+        when Clauses::Raw then render_raw(clause.expression)
         else raise ArgumentError, "Cannot render clause #{clause.inspect}"
         end
+      end
+
+      def render_unwind(clause)
+        "UNWIND #{render_expression(clause.expression)} AS #{render_expression(clause.variable)}"
       end
 
       def render_load_csv(clause)

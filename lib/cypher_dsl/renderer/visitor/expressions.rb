@@ -250,43 +250,6 @@ module CypherDSL
           "#{opening}#{break_line(@level + 1)}#{entries.join(",#{break_line(@level + 1)}")}#{break_line}#{closing}"
         end
 
-        def render_comparison(comparison)
-          left = render_operand(comparison.left)
-          return "#{left} #{comparison.operator}" if comparison.unary?
-
-          "#{left} #{comparison.operator} #{render_operand(comparison.right)}"
-        end
-
-        # A comparison nested inside another comparison is parenthesised: `(1 > 2) = true`.
-        def render_operand(expression)
-          rendered = render_expression(expression)
-          expression.is_a?(Comparison) ? "(#{rendered})" : rendered
-        end
-
-        # Pretty printed, each further operand starts an indented line: `(a\n  AND b)`.
-        # `exists(n.prop)` on Neo4j 4, `n.prop IS NOT NULL` afterwards.
-        def render_property_exists(condition, negated: false)
-          property = render_expression(condition.property)
-          return "exists(#{property})" if @configuration.legacy_functions?
-
-          "#{property} IS #{'NOT ' unless negated}NULL"
-        end
-
-        def render_compound_condition(condition)
-          if condition.negation?
-            negated = condition.conditions.first
-            if negated.is_a?(PropertyExistsCondition) && !@configuration.legacy_functions?
-              return render_property_exists(negated, negated: true)
-            end
-
-            rendered = render_expression(negated)
-            return negated.is_a?(RelationshipPatternCondition) ? "NOT #{rendered}" : "NOT (#{rendered})"
-          end
-
-          operands = nested { condition.conditions.map { |inner| render_expression(inner) } }
-          "(#{operands.join("#{break_line(@level + 1)}#{condition.operator} ")})"
-        end
-
         def render_function_invocation(invocation)
           arguments = invocation.arguments.map do |argument|
             rendered = render_expression(argument)

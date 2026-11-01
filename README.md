@@ -75,6 +75,19 @@ Cypher.returning(Cypher.raw('($E + $E) * $factor', Cypher.parameter(:a), 2, Cyph
   .build.cypher # => "RETURN ($a + 2) * $factor AS r"
 ```
 
+A raw fragment is also accepted as a pattern element, as a condition, as a `SET`
+operation, and `raw_clause` renders a whole clause verbatim. These are escape hatches
+for DSLs that have to pass user-written Cypher through; a raw condition combined with
+others is parenthesised so its precedence survives:
+
+```ruby
+Cypher.match(Cypher.raw('(n)-[:KNOWS]->(m)'))
+  .where(Cypher.property(:n, :age).gt(30).and(Cypher.raw('m.name STARTS WITH "A" OR m.vip')))
+  .raw_clause('CALL db.labels() YIELD label')
+  .returning(:n, :label).build.cypher
+# => "MATCH (n)-[:KNOWS]->(m) WHERE (n.age > 30 AND (m.name STARTS WITH \"A\" OR m.vip)) CALL db.labels() YIELD label RETURN n, label"
+```
+
 Every expression and pattern answers `to_s` with its plain Cypher, e.g.
 `Cypher.node('Person').named(:n).to_s # => "(n:Person)"`.
 

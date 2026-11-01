@@ -15,6 +15,7 @@ module CypherDSL
           when RelationshipChain then render_chain(element)
           when NamedPath then render_named_path(element)
           when QuantifiedPathPattern then render_quantified_path_pattern(element)
+          when RawExpression then render_raw(element) # `Cypher.raw('(n)-->(m)')` as a pattern
           else raise ArgumentError, "Cannot render pattern element #{element.inspect}"
           end
         end

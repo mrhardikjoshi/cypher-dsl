@@ -177,6 +177,18 @@ module CypherDSL
     # The statement built so far as an `EXISTS { … }` condition.
     def as_condition = ExistsCondition.new(build)
 
+    # --- escape hatch ----------------------------------------------------
+
+    # A clause rendered verbatim, for Cypher the builder does not model, e.g.
+    # `raw_clause('CALL db.labels() YIELD label')`. Takes the arguments of
+    # `Cypher.raw` (a format with `$E` placeholders) or a ready {RawExpression}.
+    # The next clause starts afresh: a raw clause cannot be refined with WHERE,
+    # ORDER BY, SKIP or LIMIT.
+    def raw_clause(format, *)
+      expression = format.is_a?(RawExpression) ? format : RawExpression.create(format, *)
+      append(Clauses::Raw.new(expression:), nil)
+    end
+
     # --- finishing -------------------------------------------------------
 
     # Continues with the clauses of another statement, e.g. after a `CALL … YIELD`.
@@ -283,7 +295,8 @@ module CypherDSL
       arguments.each_slice(2).map { |target, value| Operation.new(target, '=', Expression.coerce(value)) }.freeze
     end
 
-    def operation?(argument) = argument.is_a?(Operation) || argument.is_a?(LabelOperation)
+    # A raw fragment such as `Cypher.raw("n.name = 'x'")` counts as a complete operation.
+    def operation?(argument) = [Operation, LabelOperation, RawExpression].any? { |type| argument.is_a?(type) }
 
     def label_operation?(arguments)
       arguments.size > 1 && arguments.first.is_a?(Node) &&

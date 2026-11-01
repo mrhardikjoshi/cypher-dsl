@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Raw fragments for host DSLs built on strings (Ruby-only, no Java counterpart): `Cypher.raw`
+  is accepted as a pattern element in MATCH/CREATE/MERGE, as a condition (also as operand of
+  `and`/`or`/`xor`/`not`), as a complete SET / ON CREATE SET / ON MATCH SET operation, and
+  `StatementBuilder#raw_clause(format, *args)` renders a whole clause verbatim.
+- Raw operands of a compound condition are parenthesised unless they already form one group,
+  so `Cypher.raw('a OR b').as_condition.and(c)` renders `((a OR b) AND c)`.
+
 ## [0.1.0.alpha.2] - 2026-11-01
 
 Second pre-release. The whole upstream core test suite that applies to Ruby is now
