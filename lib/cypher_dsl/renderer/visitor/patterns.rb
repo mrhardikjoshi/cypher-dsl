@@ -49,14 +49,14 @@ module CypherDSL
         # variables may be introduced, so an unknown name is left out.
         def render_node(node)
           name = node.symbolic_name && resolve_name(node.symbolic_name, in_entity: true)
-          return "(#{name})" if name && @visited_names.include?(name)
+          return "(#{Escaper.escape_if_necessary(name)})" if name && @visited_names.include?(name)
 
           @visited_names << name if name && !@in_pattern_expression
           name = nil if @in_pattern_expression
           labels = node.labels.map { |label| render_label(label) }.join
           properties = node.properties && " #{render_expression(node.properties)}"
           where = node.where_condition && " WHERE #{render_expression(node.where_condition)}"
-          "(#{name}#{labels}#{properties}#{where})"
+          "(#{name && Escaper.escape_if_necessary(name)}#{labels}#{properties}#{where})"
         end
 
         # A pattern used as a condition: known names render bare, unknown ones are dropped.
@@ -72,7 +72,7 @@ module CypherDSL
           details = relationship.details
           name = relationship.symbolic_name && resolve_name(relationship.symbolic_name, in_entity: true)
           inner = if name && @visited_names.include?(name)
-                    "[#{name}]"
+                    "[#{Escaper.escape_if_necessary(name)}]"
                   else
                     @visited_names << name if name && !@in_pattern_expression
                     content = render_details_content(relationship)
@@ -91,7 +91,7 @@ module CypherDSL
           details = relationship.details
           types = details.types.map { |type| escape_schema_name(type) }.join('|')
           named = relationship.symbolic_name && !@in_pattern_expression
-          name = named ? resolve_name(relationship.symbolic_name, in_entity: true) : nil
+          name = named ? Escaper.escape_if_necessary(resolve_name(relationship.symbolic_name, in_entity: true)) : nil
           [
             name,
             (":#{types}" unless types.empty?),

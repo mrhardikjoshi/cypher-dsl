@@ -20,12 +20,12 @@ module CypherDSL
     # Renders a part of a statement on its own, e.g. a {Search}.
     def render_fragment(fragment) = Visitor.new(configuration).render_fragment(fragment)
 
-    # The statement's parameters as a {StatementCatalog}; raises
-    # {ConflictingParametersException} when a name is bound inconsistently.
+    # The statement's parameters and identifiable expressions as a {StatementCatalog};
+    # raises {ConflictingParametersException} when a name is bound inconsistently.
     def catalog(statement)
       visitor = Visitor.new(configuration)
       visitor.render(statement)
-      visitor.catalog
+      visitor.catalog(statement)
     end
   end
 end

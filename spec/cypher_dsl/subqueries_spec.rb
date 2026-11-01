@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-# Translated from SubqueriesIT.java.
+# Translated from SubqueriesIT.java, rendered with the Neo4j 4 dialect (`CALL { WITH … }`).
 #
-# Adapted: assertions on `getCatalog().getIdentifiableExpressions()` are left out; the
-# statement catalog is not implemented.
+# Adapted: assertions on `getCatalog().getIdentifiableExpressions()` live in the GQL
+# twin of this file, subqueries_gql_spec.rb, which shares the statements.
 module CypherDSL
   RSpec.describe 'SubqueriesIT' do
     let(:cypher_renderer) { Renderer.get_renderer(Renderer::Configuration.new_config.with_dialect(Renderer::Dialect::NEO4J_4).build) }

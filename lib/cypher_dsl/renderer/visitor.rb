@@ -27,8 +27,8 @@ module CypherDSL
         @level = 0
       end
 
-      # The parameters seen while rendering; see {Renderer#catalog}.
-      def catalog = StatementCatalog.from_uses(@parameter_uses, @renamed_parameters)
+      # The parameters seen while rendering `statement`; see {Renderer#catalog}.
+      def catalog(statement = nil) = StatementCatalog.from_uses(@parameter_uses, @renamed_parameters, statement:)
 
       # A part of a statement on its own.
       def render_fragment(fragment)

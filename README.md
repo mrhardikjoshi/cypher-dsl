@@ -57,6 +57,13 @@ statement.parameter_names # => ["name"]
 `Cypher.anon_parameter(value)` lets the renderer pick the name (`$pcdsl01`, …).
 Binding one name to two different values raises `ConflictingParametersException`.
 
+`statement.catalog` also lists the expressions a statement hands back, i.e. the
+names and expressions of its final `RETURN` or `YIELD`:
+
+```ruby
+statement.catalog.identifiable_expressions # => [Cypher.name(:u)]
+```
+
 ## Rendering options
 
 ```ruby

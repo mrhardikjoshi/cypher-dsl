@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Generated names (`with_generated_names`) and `StatementCatalog#renamed_parameters`.
 - `Cypher.exists(property)` renders `exists()` on Neo4j 4 and `IS NOT NULL` afterwards;
   `shortestPath()` / `allShortestPaths()` on Neo4j 4 and 5.
+- `StatementCatalog#identifiable_expressions`: the items of the final `RETURN` or `YIELD`
+  (SubqueriesGQLIT).
+
+### Fixed
+
+- Node and relationship names that need quoting (e.g. containing a backtick) are now
+  escaped inside patterns, not only where they are used as expressions.
 
 ### Changed
 
