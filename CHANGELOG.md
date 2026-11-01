@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0.alpha.2] - 2026-11-01
+
+Second pre-release. The whole upstream core test suite that applies to Ruby is now
+translated (1067 examples): all remaining integration tests (HintsIT, LoadCSVIT, DialectIT,
+SubqueriesGQLIT, UseIT, ExpressionsIT, IdentifiableExpressionsIT, Cypher5IT, labels, search
+and vector tests) and the unit tests for literals, escaping, preconditions and `toString`.
+Not translated: `DurationLiteralTests` (no duration type in Ruby's standard library), the
+Java-only reflection, package-structure and foreign-adapter tests, and the QueryDSL adapter.
+
 ### Added
 
 - Planner hints: `using_index`, `using_index_seek`, `using_scan`, `using_join_on` (HintsIT).
@@ -70,5 +79,6 @@ collection, IssueRelatedIT, FunctionsIT).
 - Renderer with dialects (Neo4j 4, 5, 5.23+), pretty printing, identifier escaping,
   parameter collection (`Statement#catalog`).
 
-[Unreleased]: https://github.com/neo4jrb/cypher-dsl/compare/v0.1.0.alpha.1...HEAD
+[Unreleased]: https://github.com/neo4jrb/cypher-dsl/compare/v0.1.0.alpha.2...HEAD
+[0.1.0.alpha.2]: https://github.com/neo4jrb/cypher-dsl/compare/v0.1.0.alpha.1...v0.1.0.alpha.2
 [0.1.0.alpha.1]: https://github.com/neo4jrb/cypher-dsl/releases/tag/v0.1.0.alpha.1
