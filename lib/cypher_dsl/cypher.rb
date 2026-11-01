@@ -16,7 +16,7 @@ module CypherDSL
     def node(primary_label, *additional_labels)
       additional_labels = additional_labels.flatten
       properties = additional_labels.find { |label| [MapExpression, Hash].any? { |type| label.is_a?(type) } }
-      labels = [primary_label, *additional_labels.reject { |label| label.equal?(properties) }]
+      labels = [primary_label, *additional_labels.reject { |label| properties && label.equal?(properties) }]
       labels = labels.map { |label| label.is_a?(Labels) ? label : label.to_s }
       raise ArgumentError, 'A primary label is required.' if blank_label?(labels.first)
       raise ArgumentError, 'An empty label is not allowed.' if labels.drop(1).any? { |label| blank_label?(label) }

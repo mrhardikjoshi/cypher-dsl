@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Node and relationship names that need quoting (e.g. containing a backtick) are now
   escaped inside patterns, not only where they are used as expressions.
 - A `CALL { }` following a leading `USE` renders as `CALL () { }`.
+- A `nil` additional label in `Cypher.node` raises `An empty label is not allowed.` instead of being
+  dropped silently; symbols and strings are validated alike.
 
 ### Changed
 

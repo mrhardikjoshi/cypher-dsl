@@ -10,10 +10,23 @@ module CypherDSL
       expected_message = 'A primary label is required.'
       expect { Cypher.node('') }.to raise_error(ArgumentError, expected_message)
       expect { Cypher.node(" \t") }.to raise_error(ArgumentError, expected_message)
+      expect { Cypher.node(nil) }.to raise_error(ArgumentError, expected_message)
+      expect { Cypher.node(:'') }.to raise_error(ArgumentError, expected_message)
+      expect { Cypher.node(:' ') }.to raise_error(ArgumentError, expected_message)
     end
 
     it 'does not add empty additional labels' do
-      expect { Cypher.node('primary', ' ', "\t ") }.to raise_error(ArgumentError, 'An empty label is not allowed.')
+      expected_message = 'An empty label is not allowed.'
+      expect { Cypher.node('primary', ' ', "\t ") }.to raise_error(ArgumentError, expected_message)
+      expect { Cypher.node('primary', nil) }.to raise_error(ArgumentError, expected_message)
+      expect { Cypher.node('primary', :'') }.to raise_error(ArgumentError, expected_message)
+      expect { Cypher.node('primary', [:secondary, :' ']) }.to raise_error(ArgumentError, expected_message)
+    end
+
+    it 'accepts symbols as labels' do
+      node = Cypher.node(:primary, :secondary, Cypher.map_of('a', 1))
+      expect(node.labels).to contain_exactly('primary', 'secondary')
+      expect(node.to_s).to eq('(:primary:secondary {a: 1})')
     end
 
     it 'creates nodes' do
