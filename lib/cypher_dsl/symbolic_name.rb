@@ -15,7 +15,7 @@ module CypherDSL
     end
 
     # A name to be generated at render time; `hint` seeds the generated name (letters only).
-    def self.unresolved(hint) = new(nil, hint: hint.to_s.gsub(/[^a-zA-Z]/, ''))
+    def self.unresolved(hint = '') = new(nil, hint: hint.to_s.gsub(/[^a-zA-Z]/, ''))
 
     def initialize(value, hint: nil)
       raise ArgumentError, 'A symbolic name must not be empty.' if value && value.empty?

@@ -11,6 +11,9 @@ module CypherDSL
 
     def as(alias_name) = AliasedExpression.new(self, alias_name)
 
+    # The expression as Cypher, names escaped only when necessary (as the Java `toString`).
+    def to_s = Renderer.plain.render_fragment(self)
+
     # A property of this expression's value, e.g. `$param.key` or `datetime().epochSeconds`.
     def property(*names) = Property.new(self, names)
 

@@ -6,8 +6,6 @@ module CypherDSL
   # `build` finishes a bare call, `as_function` turns it into a function
   # invocation instead.
   class StandaloneCall
-    AGGREGATES = %w[avg collect count max min percentilecont percentiledisc stdev stdevp sum].freeze
-
     attr_reader :name_parts, :arguments
 
     # `name_parts` as given to `Cypher.call`: strings, symbols or arrays, dotted names split.
@@ -37,10 +35,6 @@ module CypherDSL
 
     # The procedure as a function invocation; `distinct` only for aggregates.
     def as_function(distinct = false) # rubocop:disable Style/OptionalBooleanParameter
-      if distinct && !AGGREGATES.include?(procedure_name.downcase)
-        raise ArgumentError, 'The distinct operator can only be applied within aggregate functions.'
-      end
-
       FunctionInvocation.new(procedure_name, arguments, distinct:)
     end
 

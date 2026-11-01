@@ -20,17 +20,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Cypher.exists(property)` renders `exists()` on Neo4j 4 and `IS NOT NULL` afterwards;
   `shortestPath()` / `allShortestPaths()` on Neo4j 4 and 5.
 - `StatementCatalog#identifiable_expressions`: the items of the final `RETURN` or `YIELD`
-  (SubqueriesGQLIT).
+  (SubqueriesGQLIT); also on the builder after a `WITH`/`RETURN` (IdentifiableExpressionsIT).
+- `Cypher.raw(format, *args)` with `$E` placeholders and `\$E` escapes (RawLiteralTests).
+- `COUNT { pattern WHERE … }` and `Cypher.subquery_with(…).count(…)` (ExpressionsIT).
+- `Cypher.use` validates nested `USE` and `EXPLAIN`/`PROFILE` inner statements and wraps
+  names, literals and parameters in `graph.byName(…)`; `Statement#explain` / `#profile` (UseIT).
+- `Date`, `Time` and `DateTime` literals render as `date(…)` / `datetime(…)`.
+- `Cypher.format`, `Cypher.quote`, `Cypher.has_labels_or_type`, `Cypher.sort(expr, direction)`,
+  `Property#name` / `#referenced_as`, `Configuration#==`, `to_s` on expressions and patterns
+  (the plain Cypher, as the Java `toString`).
+- Upstream preconditions: empty labels, unnamed nodes in `SET`/`+=`, missing patterns or
+  return items, non-updating clauses inside `FOREACH`, `DISTINCT` on non-aggregates,
+  unsupported literal types.
 
 ### Fixed
 
 - Node and relationship names that need quoting (e.g. containing a backtick) are now
   escaped inside patterns, not only where they are used as expressions.
+- A `CALL { }` following a leading `USE` renders as `CALL () { }`.
 
 ### Changed
 
 - The default dialect is `NEO4J_5_DEFAULT_CYPHER` (was `NEO4J_5_23`); the only difference
   is that dynamic label expressions render as such.
+- Name escaping follows upstream exactly: ``` stands for a backtick, doubled
+  backticks are collapsed before escaping, and an already quoted name is quoted again.
+  String literals escape double quotes as well as single quotes and backslashes.
 
 ## [0.1.0.alpha.1] - 2026-10-31
 

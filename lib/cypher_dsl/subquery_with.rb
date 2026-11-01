@@ -10,6 +10,7 @@ module CypherDSL
     end
 
     def collect(statement) = CollectExpression.new(statement, @imports)
+    def count(statement_or_pattern) = CountExpression.new(statement_or_pattern, @imports)
     def exists(statement_or_pattern) = ExistsCondition.new(statement_or_pattern, @imports)
   end
 end

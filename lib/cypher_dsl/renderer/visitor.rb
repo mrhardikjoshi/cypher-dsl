@@ -34,7 +34,10 @@ module CypherDSL
       def render_fragment(fragment)
         case fragment
         when Search then render_search(fragment).lstrip
-        else render_expression(fragment)
+        when Node, Relationship, RelationshipChain, NamedPath, QuantifiedPathPattern
+          render_pattern_element(fragment)
+        when Statement, UnionQuery then render(fragment)
+        else Clauses.clause?(fragment) ? render_clause(fragment) : render_expression(fragment)
         end
       end
 
@@ -43,8 +46,10 @@ module CypherDSL
 
         @depth += 1
         last = statement.clauses.size - 1
+        leading_use = statement.clauses.first.is_a?(Clauses::Use)
         rendered = statement.clauses.each_with_index.map do |clause, index|
-          @first_clause = index.zero? && @visited_names.empty?
+          # A leading USE does not count: `USE g CALL () {…}` opens the statement's scope.
+          @first_clause = (index.zero? || (leading_use && index == 1)) && @visited_names.empty?
           @in_last_return = @depth == 1 && index == last && clause.is_a?(Clauses::Return)
           render_clause(clause)
         end.join(break_line)
@@ -213,7 +218,7 @@ module CypherDSL
 
       # A CALL subquery body: only the imports are visible inside, the final RETURN is exported.
       def render_in_scope(body, scope, imports)
-        return body.content if body.is_a?(RawExpression)
+        return render_raw(body) if body.is_a?(RawExpression)
 
         outer_scope = @visited_names
         @visited_names = scope

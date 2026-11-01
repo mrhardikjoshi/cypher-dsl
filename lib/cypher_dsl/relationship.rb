@@ -32,6 +32,9 @@ module CypherDSL
     end
 
     def initialize(left, direction, right, details)
+      raise ArgumentError, 'Left node is required.' if left.nil?
+      raise ArgumentError, 'Right node is required.' if right.nil?
+
       @left = left
       @direction = direction
       @right = right

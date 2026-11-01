@@ -5,6 +5,9 @@ module CypherDSL
   class Renderer
     def self.default = @default ||= new(Configuration.default)
 
+    # The default configuration without forced escaping; used by `to_s` on expressions and patterns.
+    def self.plain = @plain ||= new(Configuration.new(always_escape_names: false))
+
     # Mirrors `Renderer.getRenderer(configuration)`.
     def self.get_renderer(configuration) = new(configuration)
 
@@ -17,7 +20,7 @@ module CypherDSL
 
     def render(statement) = "#{configuration.prefix}#{Visitor.new(configuration).render(statement)}"
 
-    # Renders a part of a statement on its own, e.g. a {Search}.
+    # Renders a part of a statement on its own: an expression, a pattern, a clause or a {Search}.
     def render_fragment(fragment) = Visitor.new(configuration).render_fragment(fragment)
 
     # The statement's parameters and identifiable expressions as a {StatementCatalog};

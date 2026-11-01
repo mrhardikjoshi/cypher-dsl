@@ -19,7 +19,11 @@ module CypherDSL
     # `match(pattern, …)` or, as in Java, `match(optional, pattern, …)` with a leading flag.
     def match(*pattern_elements)
       optional = [true, false].include?(pattern_elements.first) ? pattern_elements.shift : false
+      raise ArgumentError, 'Patterns to match are required.' if pattern_elements.any?(&:nil?)
+
       pattern_elements = pattern_elements.flatten.freeze
+      raise ArgumentError, 'At least one pattern to match is required.' if pattern_elements.empty?
+
       append(Clauses::Match.new(optional:, pattern_elements:, hints: [].freeze, search: nil, where: nil), :condition)
     end
 
@@ -69,14 +73,18 @@ module CypherDSL
     def returning_raw(*expressions) = append(Clauses::RawReturn.new(items: coerce_items(expressions)), :projection)
 
     def with(*expressions)
-      append(Clauses::With.new(distinct: false, items: coerce_items(expressions), order: nil, skip: nil, limit: nil,
-                               where: nil), :condition)
+      append(Clauses::With.new(distinct: false, items: projection_items(expressions), order: nil, skip: nil,
+                               limit: nil, where: nil), :condition)
     end
 
     def with_distinct(*expressions)
-      append(Clauses::With.new(distinct: true, items: coerce_items(expressions), order: nil, skip: nil, limit: nil,
-                               where: nil), :condition)
+      append(Clauses::With.new(distinct: true, items: projection_items(expressions), order: nil, skip: nil,
+                               limit: nil, where: nil), :condition)
     end
+
+    # The names and expressions in scope after the last WITH or RETURN, as
+    # `getIdentifiableExpressions()` on the Java builder states.
+    def identifiable_expressions = StatementCatalog.identifiable_expressions_of(build)
 
     def order_by(*sort_items)
       update_last(:order) { |clause| clause.with(order: Clauses::Order.new(items: coerce_sort_items(sort_items))) }
@@ -162,7 +170,7 @@ module CypherDSL
       update_last(nil) do |clause|
         raise ArgumentError, 'FIELDTERMINATOR needs a preceding LOAD CSV.' unless clause.is_a?(Clauses::LoadCsv)
 
-        clause.with(field_terminator: terminator.to_s)
+        clause.with_field_terminator(terminator&.to_s)
       end
     end
 
@@ -204,10 +212,7 @@ module CypherDSL
 
       def in(list) = OngoingForeach.new(@builder, @variable, Expression.coerce(list))
 
-      def apply(*clauses)
-        foreach = Clauses::Foreach.new(variable: @variable, list: @list, clauses: clauses.flatten.freeze)
-        @builder.send(:append, foreach, nil)
-      end
+      def apply(*clauses) = @builder.send(:append, Clauses.for_each(@variable, @list, clauses.flatten), nil)
     end
 
     # Intermediate state of `load_csv(uri)` waiting for `as(alias)`.
@@ -294,7 +299,17 @@ module CypherDSL
     end
 
     def return_clause(distinct, expressions)
-      Clauses::Return.new(distinct:, items: coerce_items(expressions), order: nil, skip: nil, limit: nil)
+      Clauses::Return.new(distinct:, items: projection_items(expressions), order: nil, skip: nil, limit: nil)
+    end
+
+    # RETURN/WITH items with the upstream preconditions.
+    def projection_items(expressions)
+      raise ArgumentError, 'Expressions to return are required.' if expressions.any?(&:nil?)
+
+      items = coerce_items(expressions)
+      raise ArgumentError, 'At least one expressions to return is required.' if items.empty?
+
+      items
     end
 
     def add_sort_item(expression)

@@ -17,7 +17,7 @@ module CypherDSL
           when Asterisk then '*'
           when AliasedExpression then render_aliased_reference(expression)
           when NamedPath then render_expression(expression.symbolic_name)
-          when RawExpression then expression.content
+          when RawExpression then render_raw(expression)
           when CollectExpression
             block('COLLECT {', '}') { render_subquery(expression.statement, expression.imports) }
           when CountExpression then render_count(expression)
@@ -111,12 +111,21 @@ module CypherDSL
           "exists(#{render_pattern_expression(body)})"
         end
 
+        # A pattern body renders bare; with imports it needs a MATCH after the WITH.
         def render_count(count)
           body = count.body
-          return block('COUNT {', '}') { render_subquery(body, count.imports) } if body.is_a?(Statement)
+          return block('COUNT {', '}') { render_subquery(body, count.imports) } unless pattern_body?(body)
 
-          "COUNT { #{render_in_own_scope { render_pattern_element(body) }} }"
+          rendered = render_in_own_scope do
+            imports = count.imports.map { |import| render_projection_item(import) }
+            parts = [("WITH #{imports.join(', ')} MATCH" unless imports.empty?), render_pattern_element(body)]
+            parts << "WHERE #{render_expression(count.where_condition)}" if count.where_condition
+            parts.compact.join(' ')
+          end
+          "COUNT { #{rendered} }"
         end
+
+        def pattern_body?(body) = !(body.is_a?(Statement) || body.is_a?(UnionQuery))
 
         # Renders with the current scope, discarding names introduced inside.
         def render_in_own_scope
@@ -211,11 +220,18 @@ module CypherDSL
           "#{render_expression(property.container)}#{lookups.join}"
         end
 
+        # Verbatim text with its embedded expressions rendered (and their parameters collected).
+        def render_raw(raw)
+          raw.parts.map { |part| part.is_a?(String) ? part : render_expression(part) }.join
+        end
+
         def render_literal(value)
           case value
-          when String then "'#{value.gsub('\\') { '\\\\' }.gsub("'") { "\\'" }}'"
+          when String then Literal.quote(value)
           when nil then 'NULL'
           when true, false, Numeric then value.to_s
+          when DateTime, Time then "datetime('#{value.iso8601}')"
+          when Date then "date('#{value.iso8601}')"
           else raise ArgumentError, "Cannot render literal #{value.inspect}"
           end
         end

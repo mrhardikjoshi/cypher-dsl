@@ -3,10 +3,16 @@
 module CypherDSL
   # A binary comparison (`a = b`, `a =~ b`, …) or a unary one (`a IS NULL`).
   class Comparison < Condition
+    UNARY_OPERATORS = ['IS NULL', 'IS NOT NULL'].freeze
+
     attr_reader :left, :operator, :right
 
     def initialize(left, operator, right)
       super()
+      raise ArgumentError, 'Left expression must not be null.' if left.nil?
+      raise ArgumentError, 'Operator must not be empty.' if operator.nil? || operator.to_s.strip.empty?
+      raise ArgumentError, 'Right expression must not be null.' if right.nil? && !UNARY_OPERATORS.include?(operator)
+
       @left = left
       @operator = operator
       @right = right

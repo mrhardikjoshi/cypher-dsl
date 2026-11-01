@@ -50,9 +50,9 @@ module CypherDSL
     # The condition `n:Label`, checking the node for the given labels.
     def has_labels(*labels) = HasLabelCondition.new(self, labels)
 
-    # `n += {…}` and `n = {…}`, for use in SET.
-    def mutate(expression) = Operation.new(self, '+=', Expression.coerce(expression))
-    def set(expression) = Operation.new(self, '=', Expression.coerce(expression))
+    # `n += {…}` and `n = {…}`, for use in SET; the node must be named.
+    def mutate(expression) = Operation.new(named_for_update, '+=', Expression.coerce(expression))
+    def set(expression) = Operation.new(named_for_update, '=', Expression.coerce(expression))
 
     # The map projection `n{…}`, built on the (possibly generated) name.
     def project(*entries) = MapProjection.new(required_symbolic_name, entries.flatten)
@@ -80,6 +80,12 @@ module CypherDSL
     end
 
     private
+
+    def named_for_update
+      raise ArgumentError, 'A property container must be named to be mutated.' unless named?
+
+      self
+    end
 
     def with(**changes)
       Node.new(labels:, symbolic_name: @symbolic_name, properties:, where_condition:, **changes)

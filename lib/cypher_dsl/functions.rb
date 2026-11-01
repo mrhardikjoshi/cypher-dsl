@@ -60,7 +60,13 @@ module CypherDSL
     def tail(expression) = function('tail', expression)
     def keys(expression) = function('keys', expression)
     def properties(expression) = function('properties', expression)
-    def coalesce(*expressions) = function('coalesce', *expressions)
+
+    def coalesce(*expressions)
+      raise ArgumentError, 'The expression for coalesce() is required.' if expressions.flatten.empty?
+
+      function('coalesce', *expressions)
+    end
+
     def is_empty(expression) = function('isEmpty', expression)
     def range(start_value, end_value, step = nil) = function('range', start_value, end_value, *[step].compact)
     def nodes(path) = function('nodes', path.required_symbolic_name)

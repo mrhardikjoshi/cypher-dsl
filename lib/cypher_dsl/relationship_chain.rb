@@ -31,6 +31,9 @@ module CypherDSL
     # The chain as a predicate.
     def as_condition = RelationshipPatternCondition.new(self)
 
+    # The pattern as Cypher, names escaped only when necessary.
+    def to_s = Renderer.plain.render_fragment(self)
+
     private
 
     def add(direction, other, types)

@@ -40,6 +40,16 @@ module CypherDSL
 
       def use_generated_names? = !generated_names.empty?
 
+      # Every option by name; configurations with equal options are equal.
+      def to_h
+        { always_escape_names:, dialect:, pretty_print:, indent_size:, indent_style:, disable_dynamic_labels:,
+          generated_names: }
+      end
+
+      def ==(other) = other.is_a?(Configuration) && other.to_h == to_h
+      alias eql? ==
+      def hash = to_h.hash
+
       # The default configuration, as used by `Statement#cypher`.
       def self.default = @default ||= new
 

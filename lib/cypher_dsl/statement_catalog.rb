@@ -17,9 +17,9 @@ module CypherDSL
           identifiable_expressions: identifiable_expressions_of(statement))
     end
 
-    # The expressions a statement hands back to its caller: the items of its
-    # final RETURN (names for aliased items and named entities), or the names a
-    # bare procedure call yields. Empty for a statement without result.
+    # The expressions a statement hands back to its caller: the identifiable items of
+    # its final RETURN or WITH (names for aliased items and named entities, properties
+    # as they are), or the names a bare procedure call yields. Empty otherwise.
     def self.identifiable_expressions_of(statement)
       case statement
       when UnionQuery then statement.statements.flat_map { |part| identifiable_expressions_of(part) }.uniq
@@ -30,19 +30,19 @@ module CypherDSL
 
     def self.result_items_of(clause)
       case clause
-      when Clauses::Return then clause.items
+      when Clauses::Return, Clauses::With then clause.items
       when Clauses::Call then clause.yield_items
       else []
       end
     end
     private_class_method :result_items_of
 
+    # Only names, aliases, named entities and properties identify something; a literal does not.
     def self.identifiable_expression(item)
       case item
       when AliasedExpression then item.alias_name
       when Node, Relationship then item.symbolic_name
-      when Asterisk then nil
-      else item
+      when SymbolicName, Property then item
       end
     end
     private_class_method :identifiable_expression

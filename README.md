@@ -64,6 +64,20 @@ names and expressions of its final `RETURN` or `YIELD`:
 statement.catalog.identifiable_expressions # => [Cypher.name(:u)]
 ```
 
+## Raw Cypher
+
+`Cypher.raw` embeds Cypher text verbatim. `$E` placeholders take the arguments in
+order, expressions as they are and anything else as a literal, while a `$name` that
+matches a named parameter among the arguments binds that parameter; `\$E` is a literal `$E`:
+
+```ruby
+Cypher.returning(Cypher.raw('($E + $E) * $factor', Cypher.parameter(:a), 2, Cypher.parameter(:factor, 3)).as(:r))
+  .build.cypher # => "RETURN ($a + 2) * $factor AS r"
+```
+
+Every expression and pattern answers `to_s` with its plain Cypher, e.g.
+`Cypher.node('Person').named(:n).to_s # => "(n:Person)"`.
+
 ## Rendering options
 
 ```ruby

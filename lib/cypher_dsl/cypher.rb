@@ -10,14 +10,23 @@ module CypherDSL
 
     # --- pattern elements ------------------------------------------------
 
-    # A node with one primary label and optional additional labels; a trailing
-    # map (`Cypher.node('Test', Cypher.map_of(…))`) sets its properties.
+    # A node with one primary label and optional additional labels (or lists of
+    # them); a map among the arguments (`Cypher.node('Test', Cypher.map_of(…))`)
+    # sets its properties.
     def node(primary_label, *additional_labels)
-      properties = additional_labels.pop if [MapExpression, Hash].any? { |type| additional_labels.last.is_a?(type) }
-      labels = [primary_label, *additional_labels].map { |label| label.is_a?(Labels) ? label : label.to_s }
+      additional_labels = additional_labels.flatten
+      properties = additional_labels.find { |label| [MapExpression, Hash].any? { |type| label.is_a?(type) } }
+      labels = [primary_label, *additional_labels.reject { |label| label.equal?(properties) }]
+      labels = labels.map { |label| label.is_a?(Labels) ? label : label.to_s }
+      raise ArgumentError, 'A primary label is required.' if blank_label?(labels.first)
+      raise ArgumentError, 'An empty label is not allowed.' if labels.drop(1).any? { |label| blank_label?(label) }
+
       node = Node.new(labels:)
       properties ? node.with_properties(properties) : node
     end
+
+    def blank_label?(label) = label.is_a?(String) && label.strip.empty?
+    private_class_method :blank_label?
 
     # A node without labels, optionally named.
     # `Cypher.search(:movie).in('index').for_vector(v).limit(4).build`, see {Search}.
@@ -95,6 +104,7 @@ module CypherDSL
     # A property gives the condition `n.prop IS NOT NULL` (`exists(n.prop)` on Neo4j 4), any other
     # plain expression the `exists(expr)` function.
     def exists(body, *imports)
+      raise ArgumentError, 'The expression or pattern for exists() is required.' if body.nil?
       return PropertyExistsCondition.new(body) if body.is_a?(Property)
       return function('exists', body) if body.is_a?(Expression) && !body.is_a?(Statement) && !pattern?(body)
 
@@ -105,6 +115,9 @@ module CypherDSL
     private_constant :PATTERN_TYPES
 
     def pattern?(value) = PATTERN_TYPES.any? { |type| value.is_a?(type) }
+
+    # The condition `name:Label`, for a name that may stand for a node or a relationship.
+    def has_labels_or_type(name, *labels) = HasLabelCondition.new(SymbolicName.of(name), labels.flatten)
 
     # List predicates: `Cypher.all(:x).in(list).where(condition)`.
     def all(variable) = ListPredicate::Ongoing.new('all', variable)
@@ -148,7 +161,26 @@ module CypherDSL
     # A map projection on a name: `Cypher.create_projection(:n, 'title')` → `n{.title}`.
     def create_projection(name, *entries) = MapProjection.new(SymbolicName.of(name), entries.flatten)
 
-    def sort(expression) = SortItem.new(Expression.coerce(expression), nil)
+    # A sort item, optionally with its direction (`:asc` / `:desc`).
+    def sort(expression, direction = nil) = SortItem.new(Expression.coerce(expression), direction)
+
+    # A string as a Cypher string literal, `'…'` with quotes and backslashes escaped.
+    def quote(string) = Literal.quote(string)
+
+    # A short textual form of an expression: the name of a named element, alias or
+    # symbolic name, `container.name` for a property, the rendered Cypher otherwise.
+    def format(expression)
+      case expression
+      when Node, Relationship then expression.required_symbolic_name.value
+      when AliasedExpression then expression.alias_name.value
+      when SymbolicName then expression.value
+      when Property then ([expression.container] + expression.names).map { |part| format_name(part) }.join('.')
+      else Renderer.plain.render_fragment(expression)
+      end
+    end
+
+    def format_name(name) = name.is_a?(Expression) ? format(name) : name
+    private_class_method :format_name
 
     # `size(list)` or `size(pattern)`.
     def size(expression_or_pattern)
@@ -156,12 +188,14 @@ module CypherDSL
       function('size', argument)
     end
 
-    # `count(expression)`, or `COUNT { pattern }` / `COUNT { statement }` for patterns and statements.
-    def count(expression_or_pattern)
-      subquery = pattern?(expression_or_pattern) || expression_or_pattern.is_a?(Statement)
-      return CountExpression.new(expression_or_pattern) if subquery
+    # `count(expression)`, or `COUNT { [WITH imports] pattern }` / `COUNT { … statement }`
+    # for patterns and statements.
+    def count(expression_or_pattern, *imports)
+      subquery = pattern?(expression_or_pattern) || expression_or_pattern.is_a?(Statement) ||
+                 expression_or_pattern.is_a?(UnionQuery)
+      return FunctionInvocation.new('count', [Expression.coerce(expression_or_pattern)]) unless subquery
 
-      FunctionInvocation.new('count', [Expression.coerce(expression_or_pattern)])
+      CountExpression.new(expression_or_pattern, imports.flatten.map { |import| Expression.coerce(import) })
     end
 
     # `Cypher.call('db.labels')` / `Cypher.call('db', 'labels')`: a procedure call (see {StandaloneCall});
@@ -172,12 +206,22 @@ module CypherDSL
       StandaloneCall.new(arguments)
     end
 
-    # `Cypher.use('graph', statement)` / `Cypher.use(Cypher.graph_by_name(name), statement)`:
-    # the statement prefixed with `USE graph`.
+    # `Cypher.use('graph', statement)`: the statement prefixed with `USE graph`. An
+    # expression as the target (a name, literal or parameter) is wrapped in
+    # `graph.byName(…)` unless it already is a function call.
     def use(graph, statement)
+      raise ArgumentError, 'Nested USE clauses are not supported' if statement.clauses.first.is_a?(Clauses::Use)
+      if statement.prefix
+        raise ArgumentError, "#{DECORATED[statement.prefix]} statements are not supported inside USE clauses"
+      end
+
+      graph = graph_by_name(graph) if graph.is_a?(Expression) && !graph.is_a?(FunctionInvocation)
       graph = graph.to_s unless graph.is_a?(Expression)
       Statement.new([Clauses::Use.new(graph:)] + statement.clauses)
     end
+
+    DECORATED = { 'EXPLAIN' => "EXPLAIN'ed", 'PROFILE' => "PROFILE'd" }.freeze
+    private_constant :DECORATED
 
     # `Cypher.load_csv('file:///x.csv').as(:line)`.
     def load_csv(uri, positional_headers = false, with_headers: positional_headers) # rubocop:disable Style/OptionalBooleanParameter
@@ -197,8 +241,9 @@ module CypherDSL
       StatementBuilder.new.send(:append, clause, nil)
     end
 
-    # Verbatim Cypher, the escape hatch.
-    def raw(cypher) = RawExpression.new(cypher)
+    # Verbatim Cypher, the escape hatch; `$E` placeholders take the arguments in
+    # order, `\$E` is a literal `$E`. See {RawExpression.create}.
+    def raw(*) = RawExpression.create(*)
 
     # Static comparison forms, `Cypher.gt(a, b)` etc.
     def eq(left, right) = Expression.coerce(left).is_equal_to(right)

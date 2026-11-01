@@ -23,6 +23,10 @@ module CypherDSL
       @cypher ||= Renderer.default.render(self).freeze
     end
 
+    # The same statement with `EXPLAIN` / `PROFILE` in front.
+    def explain = Statement.new(clauses, prefix: 'EXPLAIN')
+    def profile = Statement.new(clauses, prefix: 'PROFILE')
+
     # Parameter names and bound values; raises {ConflictingParametersException}
     # when a name is bound inconsistently. Memoised, like `cypher`.
     def catalog
