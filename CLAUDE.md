@@ -45,6 +45,51 @@ line-by-line port. The reference source is a full clone of the Java project at
   `refactor`, `ci` do not.
 - Never merge PRs; the maintainer merges.
 
+## Releasing (pre-releases on rubygems.org)
+
+Work happens directly on `main`. For a release:
+
+1. Bump `lib/cypher_dsl/version.rb` and the install line in `README.md`.
+2. Move the `[Unreleased]` entries of `CHANGELOG.md` into a dated version
+   section and update the compare links at the bottom.
+3. `bundle install` (the lockfile is gitignored), `bundle exec rspec`,
+   `gem build cypher-dsl.gemspec`.
+4. Commit as `chore(release): vX.Y.Z`, push `main`, push an annotated tag
+   `vX.Y.Z`, wait for CI.
+5. The maintainer pushes the `.gem` to rubygems.org themselves (MFA). Never
+   run `gem push`.
+
+## Status and roadmap
+
+- Translated and green: `CypherIT` (all nested groups), `ProcedureCalls`,
+  `Subqueries` (+ GQL), `ParameterIT`, `IssueRelatedIT` 1–6, `FunctionsIT`,
+  `HintsIT`, `LoadCSVIT`, `DialectIT`, `UseIT`, `ExpressionsIT`,
+  `IdentifiableExpressionsIT`, `Cypher5IT`, `LabelsTests`, `SearchTests`,
+  `VectorTests`, `ConfigurableRendererTests` and the small unit-test classes
+  (literals, escaping, preconditions, `to_s`, visitors).
+- Deliberately not ported: `DurationLiteralTests` (no Ruby duration type),
+  `TreeNode`, `BuiltInFunctions`, `PackageAndAPIStructure`,
+  `ReflectiveVisitor`, `ForeignAdapter` and the QueryDSL adapter. The
+  `StatementCatalog` exposes only parameters and identifiable expressions
+  (no labels/properties/filters/relations/literals catalog).
+- Design choice that differs from Java: `nil` arguments coerce to the `NULL`
+  literal instead of raising.
+- Ruby-only additions exist for host DSLs that still build strings:
+  `Cypher.raw` as pattern element / condition / SET operation,
+  `StatementBuilder#raw_clause`, `Renderer#render_fragment`,
+  `ConflictingParametersException` carrying `{name => Set[values]}`.
+- Main consumer: [activegraph](https://github.com/neo4jrb/activegraph)
+  (`ActiveGraph::Core::Query`, `QueryProxy`, association patterns) since its
+  PR #1753, requiring `>= 0.1.0.alpha.3`. Keep those entry points stable.
+- Open follow-ups activegraph needs before it can drop its last string
+  templates:
+  - a whole-map parameter as pattern properties, `CREATE (n:Label $props)`
+    (`MapExpression.of` rejects a lone `Parameter`, as Java does; needs a
+    deliberate extension);
+  - AST-level renaming of parameters so union / `CALL {}` branches built
+    independently can be merged without text substitution;
+  - schema DDL (constraints, indexes) has no model at all.
+
 ## Licensing
 
 Ruby code is MIT. Translated specs are a derivative of Apache-2.0 code: keep
