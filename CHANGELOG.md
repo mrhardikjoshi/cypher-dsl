@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve aliases introduced by WITH in relationship predicates, including WITH DISTINCT
+  and aliases projected alongside WITH *.
+
 ## [0.1.0.alpha.3] - 2026-11-01
 
 The release activegraph's `ActiveGraph::Core::Query` builds on.
