@@ -87,11 +87,14 @@ Work happens directly on `main`. For a release:
   a lone `Parameter`, as Java does, and activegraph's factories use the SET
   form. Only add the pattern form if a consumer needs byte-identical
   `CREATE (n:Label $props)` text.
-- Open follow-ups activegraph needs before it can drop its last string
-  templates:
-  - AST-level renaming of parameters so union / `CALL {}` branches built
-    independently can be merged without text substitution;
-  - schema DDL (constraints, indexes) has no model at all.
+- Parameter naming is the caller's job, as in Java: `Cypher.union` and
+  `Cypher.call(statement)` merge the parameters of the parts and raise
+  `ConflictingParametersException` on a clash. Do not add a renaming pass
+  to the DSL; a host that builds union / `CALL {}` branches independently
+  must give them unique names when it creates them (activegraph owns this
+  in `QueryProxy::Link`, where it is still a text substitution).
+- Schema DDL (constraints, indexes) has no model at all, neither here nor in
+  Java; activegraph keeps those templates as strings.
 
 ## Licensing
 
