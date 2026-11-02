@@ -91,8 +91,8 @@ Work happens directly on `main`. For a release:
   `Cypher.call(statement)` merge the parameters of the parts and raise
   `ConflictingParametersException` on a clash. Do not add a renaming pass
   to the DSL; a host that builds union / `CALL {}` branches independently
-  must give them unique names when it creates them (activegraph owns this
-  in `QueryProxy::Link`, where it is still a text substitution).
+  must give them unique names when it creates them (activegraph does this
+  with a namespaced parameter registry, `Core::Query#params_namespace`).
 - Schema DDL (constraints, indexes) has no model at all, neither here nor in
   Java; activegraph keeps those templates as strings.
 
