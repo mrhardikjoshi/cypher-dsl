@@ -81,11 +81,14 @@ Work happens directly on `main`. For a release:
 - Main consumer: [activegraph](https://github.com/neo4jrb/activegraph)
   (`ActiveGraph::Core::Query`, `QueryProxy`, association patterns) since its
   PR #1753, requiring `>= 0.1.0.alpha.3`. Keep those entry points stable.
+- A whole property map as a parameter is expressed the Java way, through
+  `node.set(parameter)` / `node.mutate(parameter)` (`SET n = $props`,
+  `SET n += $props`), not as pattern properties: `MapExpression.of` rejects
+  a lone `Parameter`, as Java does, and activegraph's factories use the SET
+  form. Only add the pattern form if a consumer needs byte-identical
+  `CREATE (n:Label $props)` text.
 - Open follow-ups activegraph needs before it can drop its last string
   templates:
-  - a whole-map parameter as pattern properties, `CREATE (n:Label $props)`
-    (`MapExpression.of` rejects a lone `Parameter`, as Java does; needs a
-    deliberate extension);
   - AST-level renaming of parameters so union / `CALL {}` branches built
     independently can be merged without text substitution;
   - schema DDL (constraints, indexes) has no model at all.
